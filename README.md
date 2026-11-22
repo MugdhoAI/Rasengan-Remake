@@ -9,9 +9,9 @@ Live demo: https://rasengan-remake.vercel.app/
 ## Styles
 
 - **Classic**: a blue sphere of tangled energy filaments, white, pale blue and gold threads crisscrossing over a bright core.
-- **Wind Rasenshuriken**: a bright wind sphere pulled in tight, inside a wide disc of wind cloud drawn from the anime frames, dense at the heart and wispy at the rim, with four blade swirls of denser cloud inside it, fine particles shimmering over it, wind streaks circling and mist at the rim. Charge it with a fist and release, and the disc flares wide.
-- **Magnet Rasenshuriken**: a deep blue sphere covered in hundreds of small dark tomoe seals, black orbs circling it, inside a blue wing disc with the seals printed on the disc itself.
-- **Lava Rasenshuriken**: a bright molten sphere with embers and smoke, inside a wing disc that runs white hot at the core through orange to deep red at the tips.
+- **Wind Rasenshuriken**: a bright wind sphere pulled in tight, inside a wide disc of wind cloud drawn from the anime frames, dense at the heart and wispy at the rim, with four soft cloud blades inside it whose tips hook in the spin, fine particles shimmering over it, wind streaks circling the same way the disc turns and mist at the rim. Charge it with a fist and release, and the disc flares wide.
+- **Magnet Rasenshuriken**: a deep blue sphere covered in hundreds of small dark tomoe seals, black orbs circling it, inside a blue cloud disc with seals printed on the cloud and riding the blades.
+- **Lava Rasenshuriken**: a bright molten sphere with embers and smoke, inside a cloud disc of bent pale blades edged with flame, over a ring of fire clouds.
 
 ## Controls
 

@@ -306,16 +306,31 @@
       puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr,
            20 + Math.random() * 60, P.blob[i % 3], 0.05 + Math.random() * 0.10 * (0.4 + edge));
     }
-    // Four blade swirls: denser, brighter cloud along swept arcs
-    for (var b = 0; b < 4; b++) {
+    // For Lava, a ring of fire clouds sits behind the blades, like
+    // the game frame
+    if (mode === "lava") {
       for (i = 0; i < 130; i++) {
-        var t = Math.pow(Math.random(), 0.85);
-        var ang = b * Math.PI / 2 + t * 0.9;
-        var rad = 60 + t * 400;
-        var off = (Math.random() - 0.5) * (26 + t * 60);
-        puff(cx + Math.cos(ang) * rad - Math.sin(ang) * off,
-             cx + Math.sin(ang) * rad + Math.cos(ang) * off,
-             14 + Math.random() * 34, P.blade, 0.10 + Math.random() * 0.12);
+        a = (i / 130) * Math.PI * 2 + Math.random() * 0.05;
+        rr = 400 + Math.random() * 80;
+        puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 26 + Math.random() * 40, [255, 110, 10], 0.16);
+        if (Math.random() < 0.5) puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 18 + Math.random() * 26, [214, 48, 0], 0.14);
+      }
+    }
+    // Four blades, drawn as soft cloud along a curved spine. The
+    // bend grows with the cube of the distance, gentle at the root
+    // and hooking at the tip, the bendy corner of the game frame.
+    // Thick in the middle, tapering to the bent point.
+    for (var b = 0; b < 4; b++) {
+      var base = b * Math.PI / 2;
+      for (var s2 = 0; s2 <= 26; s2++) {
+        var t2 = s2 / 26;
+        var ang2 = base + t2 * 0.5 + 0.5 * t2 * t2 * t2;
+        var rad2 = 70 + t2 * 390;
+        var wdt = 48 * Math.pow(Math.sin(Math.PI * Math.min(1, t2 * 1.12)), 0.7) + 2;
+        var bx = cx + Math.cos(ang2) * rad2, by = cx + Math.sin(ang2) * rad2;
+        if (mode === "lava") puff(bx, by, wdt * 1.5, [255, 120, 20], 0.10);
+        puff(bx, by, wdt, P.blade, 0.20);
+        puff(bx, by, wdt * 0.55, P.blade, 0.16);
       }
     }
     // Bright heart around the core
@@ -325,10 +340,19 @@
       puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 16 + Math.random() * 40, P.blade, 0.12);
     }
     if (mode === "magnet") {
-      for (i = 0; i < 90; i++) {
+      // Seals stay where the cloud is thick, never out on the wispy
+      // rim where they would float loose
+      for (i = 0; i < 70; i++) {
         a = Math.random() * Math.PI * 2;
-        rr = 40 + Math.pow(Math.random(), 0.8) * 400;
-        tomoe(ctx, cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 5 + Math.random() * 6, Math.random() * Math.PI * 2, "#060d2e", 0.85);
+        rr = 40 + Math.pow(Math.random(), 0.8) * 330;
+        tomoe(ctx, cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 6 + Math.random() * 5, Math.random() * Math.PI * 2, "#060d2e", 0.8);
+      }
+      // And some ride the blades themselves, following the bend
+      for (i = 0; i < 24; i++) {
+        var tb = i % 4, tt2 = 0.25 + Math.random() * 0.7;
+        var sang = tb * Math.PI / 2 + tt2 * 0.5 + 0.5 * tt2 * tt2 * tt2;
+        var srad = 70 + tt2 * 390;
+        tomoe(ctx, cx + Math.cos(sang) * srad, cx + Math.sin(sang) * srad, 6 + Math.random() * 5, Math.random() * Math.PI * 2, "#060d2e", 0.8);
       }
     }
     if (mode === "lava") {
@@ -540,7 +564,7 @@
         // wide, so no arm can be picked out at full spin
         var b = i % 4;
         var tt = Math.pow(Math.random(), 0.8);
-        var ang = b * Math.PI / 2 + tt * 0.8;
+        var ang = b * Math.PI / 2 + tt * 0.5 + 0.5 * tt * tt * tt;
         var rad = 0.5 + tt * 2.05;
         var off = (Math.random() - 0.5) * 0.8 * (1 - tt * 0.3);
         x = Math.cos(ang) * rad - Math.sin(ang) * off;
@@ -925,7 +949,7 @@
     // drifts slower at the rim.
     windGroup.visible = bladeLevel > 0.02;
     if (windGroup.visible) {
-      windAngle += dt * (8 + charge * 6) * (pulseT >= 0 ? 1.5 : 1);
+      windAngle -= dt * (8 + charge * 6) * (pulseT >= 0 ? 1.5 : 1);
       windMat.opacity = 0.38 * bladeLevel * presence;
       for (var w = 0; w < WIND_N; w++) {
         var wa = windAng[w] + windAngle * windSpd[w];
@@ -943,7 +967,7 @@
       windGeo.attributes.position.needsUpdate = true;
       for (var m = 0; m < windMists.length; m++) {
         var mm = windMists[m];
-        mm.ang += dt * mm.spd * (1 + charge);
+        mm.ang -= dt * mm.spd * (1 + charge);
         mm.sprite.position.set(Math.cos(mm.ang) * mm.rad, Math.sin(mm.ang) * mm.rad, Math.sin(mm.ph) * 0.3);
         var msc = mm.scl * (1 + Math.sin(now * 0.001 + mm.ph) * 0.15);
         mm.sprite.scale.set(msc, msc * 0.8, 1);
