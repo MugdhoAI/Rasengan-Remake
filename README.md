@@ -10,15 +10,16 @@ Live demo: https://rasengan-remake.vercel.app/
 
 - **Classic**: a blue sphere of tangled energy filaments, white, pale blue and gold threads crisscrossing over a bright core.
 - **Wind Rasenshuriken**: a bright wind sphere pulled in tight, inside a wide disc of wind cloud drawn from the anime frames, dense at the heart and wispy at the rim, with four soft cloud blades inside it whose tips hook in the spin, fine particles shimmering over it, wind streaks circling the same way the disc turns and mist at the rim. Charge it with a fist and release, and the disc flares wide.
-- **Magnet Rasenshuriken**: a deep blue sphere covered in hundreds of small dark tomoe seals, black orbs circling it, inside a blue cloud disc with seals printed on the cloud and riding the blades.
+- **Magnet Rasenshuriken**: a bright blue sphere tiled with proper tomoe seal spirals copied from the sphere Naruto holds, black orbs with violet rims circling the core, inside a clean blue cloud disc. The seals live only on the sphere, never on the wings.
 - **Lava Rasenshuriken**: a bright molten sphere with embers and smoke, inside a cloud disc of bent pale blades edged with flame, over a ring of fire clouds.
+- **Dual, Magnet + Lava**: the exceptional fifth style. One sphere, half Magnet seals and half Lava rock, inside a cloud disc that is blue on one side and flame on the other, its blades alternating blue and flame, with embers, smoke and orbs together.
 
 ## Controls
 
 - Open palm: the sphere fades in above your palm and follows your hand.
 - Fist: charge it. The sphere compresses, spins faster, and glows harder.
 - Open your hand after a charge: release. The energy pulses out, widest in the Rasenshuriken styles.
-- Keys 1 to 4 or the buttons at the bottom: switch style.
+- Keys 1 to 5 or the buttons at the bottom: switch style.
 - Take your hand away: the sphere fades out, like the original. Show your palm to bring it back.
 
 ## Run it locally
