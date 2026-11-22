@@ -1,18 +1,22 @@
 # Wind Style Rasen Shuriken
 
-A Rasengan that appears above your palm and follows your hand through the webcam. No effect videos: each style has its own surface, drawn in code from the anime and wrapped on a sphere, with sparks, embers and blades generated live around it.
+![Wind Style Rasen Shuriken](docs/assets/wind-style-rasen-shuriken-hero.svg?v=1)
+
+A Rasengan that appears above your palm and follows your hand through the webcam. No effect videos: every style has its own surface, drawn in code from the anime and wrapped on a sphere, with sparks, embers and blades generated live around it.
+
+**Live demo: https://wind-style-rasen-shuriken.vercel.app/**
 
 Inspired by vietnh1009/Naruto, rebuilt from scratch with a procedural engine, so new chakra natures are just new surface data.
 
-Live demo: https://wind-style-rasen-shuriken.vercel.app/
-
 ## Styles
 
-- **Classic**: a blue sphere of tangled energy filaments, white, pale blue and gold threads crisscrossing over a bright core.
-- **Wind Rasenshuriken**: a bright wind sphere pulled in tight, inside a wide disc of wind cloud drawn from the anime frames, dense at the heart and wispy at the rim, with four soft cloud blades inside it whose tips hook in the spin, fine particles shimmering over it, wind streaks circling the same way the disc turns and mist at the rim. Charge it with a fist and release, and the disc flares wide.
-- **Magnet Rasenshuriken**: a bright blue sphere tiled with the real seal pattern, a dark ring with a dot inside it, copied from the sphere Naruto holds, black orbs with violet rims floating on a tilted ring around the core, inside a clean blue cloud disc. The seals live only on the sphere, never on the wings.
-- **Lava Rasenshuriken**: a bright molten sphere with embers and smoke, inside a cloud disc of bent pale blades edged with flame, over a ring of fire clouds.
-- **Dual, Magnet + Lava**: the exceptional fifth style, and it uses both hands. Show both palms and the Magnet Rasenshuriken forms in your left hand while the Lava Rasenshuriken forms in your right, each with its own disc, embers, orbs and charge.
+| Key | Style | What you see |
+| --- | --- | --- |
+| 1 | Classic | A blue sphere of tangled energy filaments, white, pale blue and gold threads over a bright core |
+| 2 | Wind Rasenshuriken | A bright wind sphere pulled in tight, inside a wide disc of wind cloud drawn from the anime frames, four soft cloud blades whose tips hook in the spin, wind streaks and rim mist |
+| 3 | Magnet Rasenshuriken | A bright blue sphere tiled with the real seal pattern, a dark ring with a dot inside it, black orbs with violet rims on a tilted ring, inside a clean blue cloud disc |
+| 4 | Lava Rasenshuriken | A bright molten sphere with embers and smoke, inside a cloud disc of bent pale blades edged with flame, over a ring of fire clouds |
+| 5 | Dual, Magnet + Lava | Both hands at once: Magnet Rasenshuriken in your left hand, Lava Rasenshuriken in your right, each with its own disc and its own charge |
 
 ## Controls
 
@@ -20,8 +24,15 @@ Live demo: https://wind-style-rasen-shuriken.vercel.app/
 - Fist: charge it. The sphere compresses, spins faster, and glows harder.
 - Open your hand after a charge: release. The energy pulses out, widest in the Rasenshuriken styles.
 - Keys 1 to 5 or the buttons at the bottom: switch style.
-- Style 5, Dual: show both hands and hold both natures at once, Magnet in your left hand, Lava in your right. In every style, a second hand mirrors the effect, and each hand charges on its own fist.
+- A second hand mirrors the effect in every style, and each hand charges on its own fist.
 - Take your hand away: the sphere fades out, like the original. Show your palm to bring it back.
+
+## How it works
+
+- Each style surface is a canvas texture drawn in code at load: filament fields for wind, the ring and dot seal grid for Magnet, layered molten blobs for Lava.
+- The wing disc is a drawn cloud, soft puffs with denser cloud along four curved blade spines, because particles alone read as noise and plain gradients wash out.
+- Two complete effect instances run at once, one per tracked hand, which is what makes Dual mode possible.
+- Hand tracking is MediaPipe Hands, up to two hands, and the effect exists only while a palm is on screen.
 
 ## Run it locally
 
