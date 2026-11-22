@@ -4,7 +4,7 @@ A Rasengan that appears above your palm and follows your hand through the webcam
 
 Inspired by vietnh1009/Naruto, rebuilt from scratch with a procedural engine, so new chakra natures are just new surface data.
 
-Live demo: https://rasengan-remake.vercel.app/
+Live demo: https://wind-style-rasen-shuriken.vercel.app/
 
 ## Styles
 
