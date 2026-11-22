@@ -63,7 +63,7 @@
 
   <div id="hud" class="panel">
     <div class="title">Rasengan Remake</div>
-    <div class="sub">A Rasengan that appears above your palm. Four styles: the Classic Rasengan, and three Rasenshuriken with flat, dense spinning wing discs.</div>
+    <div class="sub">A Rasengan that appears above your palm. Four styles: the Classic Rasengan, and three Rasenshuriken with spinning cloud wing discs.</div>
     <div id="status">Starting camera...</div>
   </div>
 
@@ -269,31 +269,75 @@
     return new THREE.CanvasTexture(c);
   }
 
-  // The solid glow under the wing particles: a radial disc with the
-  // four blade wedges drawn in. It spins with the wings. The Magnet
-  // version carries its dark seals here, printed on the disc, the
-  // only place dark detail can be seen.
+  // The wing disc is a cloud, drawn like the anime frames: a soft
+  // billowing disc of vapour, dense at the heart and wispy at the
+  // rim, with four blade swirls made of denser cloud inside it.
+  // The Magnet version carries its dark seals printed on the cloud,
+  // the only place dark detail can be seen.
   function wingDiscTexture(mode) {
-    var S = 512, c = makeCanvas(S, S), ctx = c.getContext("2d");
-    var cx = S / 2, stops, i;
-    if (mode === "lava") stops = [[0, "rgba(255,243,196,0.95)"], [0.35, "rgba(255,154,31,0.55)"], [0.7, "rgba(255,110,20,0.28)"], [1, "rgba(194,46,0,0)"]];
-    else if (mode === "magnet") stops = [[0, "rgba(188,214,255,0.95)"], [0.4, "rgba(111,168,255,0.6)"], [0.75, "rgba(47,107,255,0.32)"], [1, "rgba(47,107,255,0)"]];
-    else stops = [[0, "rgba(255,255,255,0.95)"], [0.4, "rgba(207,244,255,0.55)"], [0.75, "rgba(143,216,255,0.28)"], [1, "rgba(143,216,255,0)"]];
-    var g = ctx.createRadialGradient(cx, cx, 8, cx, cx, cx);
-    for (i = 0; i < stops.length; i++) g.addColorStop(stops[i][0], stops[i][1]);
+    var S = 1024, c = makeCanvas(S, S), ctx = c.getContext("2d");
+    var cx = S / 2, i, a, rr;
+    var P = {
+      wind:   { base: ["rgba(255,255,255,0.55)", "rgba(210,240,255,0.28)", "rgba(160,220,255,0)"],
+                blob: [[255, 255, 255], [234, 247, 255], [207, 238, 255]], blade: [255, 255, 255] },
+      magnet: { base: ["rgba(120,170,255,0.60)", "rgba(70,130,255,0.35)", "rgba(47,107,255,0)"],
+                blob: [[143, 184, 255], [111, 168, 255], [77, 141, 255]], blade: [188, 214, 255] },
+      lava:   { base: ["rgba(255,170,60,0.55)", "rgba(255,120,20,0.30)", "rgba(220,70,0,0)"],
+                blob: [[255, 210, 63], [255, 154, 31], [255, 123, 0]], blade: [255, 243, 196] }
+    }[mode];
+    function puff(px, py, r, rgb, alpha) {
+      var g = ctx.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + "," + alpha + ")");
+      g.addColorStop(1, "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ",0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(px - r, py - r, r * 2, r * 2);
+    }
+    var g = ctx.createRadialGradient(cx, cx, 10, cx, cx, cx);
+    g.addColorStop(0, P.base[0]);
+    g.addColorStop(0.55, P.base[1]);
+    g.addColorStop(1, P.base[2]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, S, S);
-    // No blade wedges: at full spin the reference disc is one uniform
-    // saucer of light, the blades blur away completely.
+    // Cloud body: soft puffs, denser inside, thinning to a wispy rim
+    for (i = 0; i < 900; i++) {
+      a = Math.random() * Math.PI * 2;
+      rr = Math.pow(Math.random(), 0.6) * 470;
+      var edge = 1 - rr / 500;
+      puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr,
+           20 + Math.random() * 60, P.blob[i % 3], 0.05 + Math.random() * 0.10 * (0.4 + edge));
+    }
+    // Four blade swirls: denser, brighter cloud along swept arcs
+    for (var b = 0; b < 4; b++) {
+      for (i = 0; i < 130; i++) {
+        var t = Math.pow(Math.random(), 0.85);
+        var ang = b * Math.PI / 2 + t * 0.9;
+        var rad = 60 + t * 400;
+        var off = (Math.random() - 0.5) * (26 + t * 60);
+        puff(cx + Math.cos(ang) * rad - Math.sin(ang) * off,
+             cx + Math.sin(ang) * rad + Math.cos(ang) * off,
+             14 + Math.random() * 34, P.blade, 0.10 + Math.random() * 0.12);
+      }
+    }
+    // Bright heart around the core
+    for (i = 0; i < 120; i++) {
+      a = Math.random() * Math.PI * 2;
+      rr = Math.random() * 130;
+      puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 16 + Math.random() * 40, P.blade, 0.12);
+    }
     if (mode === "magnet") {
-      for (i = 0; i < 110; i++) {
-        var a = Math.random() * Math.PI * 2;
-        var rr = 40 + Math.pow(Math.random(), 0.8) * 190;
-        tomoe(ctx, cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 4 + Math.random() * 5, Math.random() * Math.PI * 2, "#060d2e", 0.8);
+      for (i = 0; i < 90; i++) {
+        a = Math.random() * Math.PI * 2;
+        rr = 40 + Math.pow(Math.random(), 0.8) * 400;
+        tomoe(ctx, cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 5 + Math.random() * 6, Math.random() * Math.PI * 2, "#060d2e", 0.85);
       }
     }
     if (mode === "lava") {
-      for (i = 0; i < 60; i++) blob(ctx, S, Math.random() * S, Math.random() * S, 6 + Math.random() * 16, "#7a1e00", 0.25);
+      for (i = 0; i < 70; i++) blob(ctx, S, Math.random() * S, Math.random() * S, 6 + Math.random() * 18, "#7a1e00", 0.22);
+      for (i = 0; i < 60; i++) {
+        a = Math.random() * Math.PI * 2;
+        rr = Math.pow(Math.random(), 0.7) * 430;
+        puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 5 + Math.random() * 12, [255, 243, 196], 0.5);
+      }
     }
     return new THREE.CanvasTexture(c);
   }
@@ -477,7 +521,7 @@
   // a full disc of fine grain with four tighter blade arms inside
   // it. Colours are per particle and restyle with the mode.
   // ============================================================
-  var BLADE_N = 30000;
+  var BLADE_N = 9000;
   var bladeGeo = new THREE.BufferGeometry();
   var bladePos = new Float32Array(BLADE_N * 3);
   var bladeCol = new Float32Array(BLADE_N * 3);
@@ -680,10 +724,10 @@
       bladeColors(st.wings);
       bladeDiscMat.map = wingDiscs[st.wings];
       bladeDiscMat.color.setHex(0xffffff);
-      bladeDiscMat.blending = st.wings === "magnet" ? THREE.NormalBlending : THREE.AdditiveBlending;
+      bladeDiscMat.blending = st.wings === "lava" ? THREE.AdditiveBlending : THREE.NormalBlending;
       bladeDiscMat.needsUpdate = true;
-      discOpacityBase = st.wings === "magnet" ? 0.55 : 0.42;
-      bladeOpacityBase = 0.9;
+      discOpacityBase = st.wings === "lava" ? 0.5 : (st.wings === "magnet" ? 0.9 : 0.95);
+      bladeOpacityBase = 0.55;
       windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < windMists.length; wm++) windMists[wm].sprite.material.color.setHex(st.glow);
     }
@@ -874,7 +918,7 @@
     if (bladeGroup.visible) {
       bladeMat.opacity = bladeOpacityBase * bladeLevel * presence;
       bladeDiscMat.opacity = discOpacityBase * bladeLevel * presence;
-      bladeGroup.rotation.z -= dt * (9 + charge * 7) * (pulseT >= 0 ? 1.6 : 1);
+      bladeGroup.rotation.z -= dt * (5.5 + charge * 5) * (pulseT >= 0 ? 1.6 : 1);
     }
 
     // Wind streaks shear around the disc at their own speeds, mist
