@@ -283,7 +283,7 @@
     for (i = 0; i < stops.length; i++) g.addColorStop(stops[i][0], stops[i][1]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, S, S);
-    ctx.fillStyle = mode === "lava" ? "rgba(255,220,120,0.20)" : "rgba(255,255,255,0.18)";
+    ctx.fillStyle = mode === "lava" ? "rgba(255,220,120,0.09)" : "rgba(255,255,255,0.08)";
     for (var b = 0; b < 4; b++) {
       ctx.save();
       ctx.translate(cx, cx);
@@ -488,7 +488,7 @@
   // a full disc of fine grain with four tighter blade arms inside
   // it. Colours are per particle and restyle with the mode.
   // ============================================================
-  var BLADE_N = 24000;
+  var BLADE_N = 30000;
   var bladeGeo = new THREE.BufferGeometry();
   var bladePos = new Float32Array(BLADE_N * 3);
   var bladeCol = new Float32Array(BLADE_N * 3);
@@ -503,12 +503,12 @@
         var rr = 0.85 + Math.random() * 0.35;
         x = Math.cos(ra) * rr; y = Math.sin(ra) * rr; t = 0.12;
       } else if (kind < 0.52) {
-        // Blade arm: broad and filled, gently curved
+        // Blade arm: broad and filled, gently curved, reaching wide
         var b = i % 4;
         var tt = Math.pow(Math.random(), 0.8);
         var ang = b * Math.PI / 2 + tt * 0.8;
-        var rad = 0.5 + tt * 1.55;
-        var off = (Math.random() - 0.5) * 0.34 * (1 - tt * 0.3);
+        var rad = 0.5 + tt * 2.05;
+        var off = (Math.random() - 0.5) * 0.4 * (1 - tt * 0.3);
         x = Math.cos(ang) * rad - Math.sin(ang) * off;
         y = Math.sin(ang) * rad + Math.cos(ang) * off;
         t = tt;
@@ -516,10 +516,10 @@
         // Disc fill between the arms, thinned toward the rim so the
         // edge fades soft like the video instead of ending hard
         var fa = Math.random() * Math.PI * 2;
-        var fr = 0.5 + 1.55 * Math.pow(Math.random(), 0.75);
-        if (fr > 1.75 && Math.random() < 0.5) fr = 0.6 + Math.random() * 1.1;
+        var fr = 0.5 + 2.05 * Math.pow(Math.random(), 0.75);
+        if (fr > 2.2 && Math.random() < 0.5) fr = 0.6 + Math.random() * 1.5;
         x = Math.cos(fa) * fr; y = Math.sin(fa) * fr;
-        t = (fr - 0.5) / 1.55;
+        t = (fr - 0.5) / 2.05;
       }
       bladePos[i * 3] = x;
       bladePos[i * 3 + 1] = y;
@@ -531,7 +531,7 @@
   bladeGeo.setAttribute("position", new THREE.BufferAttribute(bladePos, 3));
   bladeGeo.setAttribute("color", new THREE.BufferAttribute(bladeCol, 3));
   var bladeMat = new THREE.PointsMaterial({
-    size: 4.2, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
+    size: 2.4, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
   });
   var bladeGroup = new THREE.Group();
@@ -539,11 +539,57 @@
     map: wingDiscs.wind, color: 0xffffff, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
   });
-  var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(2.1, 40), bladeDiscMat);
+  var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(2.7, 40), bladeDiscMat);
   bladeGroup.add(bladeDisc);
   bladeGroup.add(new THREE.Points(bladeGeo, bladeMat));
   bladeGroup.visible = false;
   group.add(bladeGroup);
+
+  // Wind around the Rasenshuriken: fast thin streaks circling the
+  // disc and slow mist sprites drifting at the rim. In the reference
+  // the disc itself is smooth light; the wind is what moves around it.
+  var WIND_N = 340;
+  var windGeo = new THREE.BufferGeometry();
+  var windPos = new Float32Array(WIND_N * 2 * 3);
+  var windAng = new Float32Array(WIND_N);
+  var windRad = new Float32Array(WIND_N);
+  var windLen = new Float32Array(WIND_N);
+  var windSpd = new Float32Array(WIND_N);
+  (function initWind() {
+    for (var i = 0; i < WIND_N; i++) {
+      windAng[i] = Math.random() * Math.PI * 2;
+      windRad[i] = 1.25 + Math.pow(Math.random(), 1.3) * 1.75;
+      windLen[i] = 0.12 + Math.random() * 0.3;
+      windSpd[i] = 0.8 + Math.random() * 0.8;
+    }
+  })();
+  windGeo.setAttribute("position", new THREE.BufferAttribute(windPos, 3));
+  var windMat = new THREE.LineBasicMaterial({
+    color: 0x9fe8ff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  var windGroup = new THREE.Group();
+  windGroup.add(new THREE.LineSegments(windGeo, windMat));
+  var windMists = [];
+  for (var mi = 0; mi < 12; mi++) {
+    var mist = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: 0x8fe3ff, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    windGroup.add(mist);
+    windMists.push({
+      sprite: mist,
+      ang: Math.random() * Math.PI * 2,
+      rad: 1.5 + Math.random() * 1.4,
+      spd: 0.3 + Math.random() * 0.4,
+      scl: 1.6 + Math.random() * 1.4,
+      ph: Math.random() * Math.PI * 2,
+      base: 0.05 + Math.random() * 0.04
+    });
+  }
+  windGroup.visible = false;
+  group.add(windGroup);
+  var windAngle = 0;
 
   var _cA = new THREE.Color(), _cB = new THREE.Color(), _cOut = new THREE.Color();
   function bladeColors(mode) {
@@ -639,8 +685,10 @@
       bladeDiscMat.color.setHex(0xffffff);
       bladeDiscMat.blending = st.wings === "magnet" ? THREE.NormalBlending : THREE.AdditiveBlending;
       bladeDiscMat.needsUpdate = true;
-      discOpacityBase = st.wings === "magnet" ? 0.55 : 0.3;
+      discOpacityBase = st.wings === "magnet" ? 0.55 : 0.42;
       bladeOpacityBase = 0.9;
+      windMat.color.setHex(st.swirlColor);
+      for (var wm = 0; wm < windMists.length; wm++) windMists[wm].sprite.material.color.setHex(st.glow);
     }
     embers.visible = st.embers > 0;
     if (embers.visible) for (var e = 0; e < EMBER_MAX; e++) respawnEmber(e, 1.05);
@@ -830,6 +878,34 @@
       bladeMat.opacity = bladeOpacityBase * bladeLevel * presence;
       bladeDiscMat.opacity = discOpacityBase * bladeLevel * presence;
       bladeGroup.rotation.z -= dt * (9 + charge * 7) * (pulseT >= 0 ? 1.6 : 1);
+    }
+
+    // Wind streaks shear around the disc at their own speeds, mist
+    // drifts slower at the rim.
+    windGroup.visible = bladeLevel > 0.02;
+    if (windGroup.visible) {
+      windAngle += dt * (8 + charge * 6) * (pulseT >= 0 ? 1.5 : 1);
+      windMat.opacity = 0.5 * bladeLevel * presence;
+      for (var w = 0; w < WIND_N; w++) {
+        var wa = windAng[w] + windAngle * windSpd[w];
+        var wr = windRad[w];
+        var wz = Math.sin(windAng[w] * 3) * 0.06;
+        windPos[w * 6] = Math.cos(wa) * wr;
+        windPos[w * 6 + 1] = Math.sin(wa) * wr;
+        windPos[w * 6 + 2] = wz;
+        windPos[w * 6 + 3] = Math.cos(wa + windLen[w]) * wr;
+        windPos[w * 6 + 4] = Math.sin(wa + windLen[w]) * wr;
+        windPos[w * 6 + 5] = wz;
+      }
+      windGeo.attributes.position.needsUpdate = true;
+      for (var m = 0; m < windMists.length; m++) {
+        var mm = windMists[m];
+        mm.ang += dt * mm.spd * (1 + charge);
+        mm.sprite.position.set(Math.cos(mm.ang) * mm.rad, Math.sin(mm.ang) * mm.rad, Math.sin(mm.ph) * 0.3);
+        var msc = mm.scl * (1 + Math.sin(now * 0.001 + mm.ph) * 0.15);
+        mm.sprite.scale.set(msc, msc * 0.8, 1);
+        mm.sprite.material.opacity = mm.base * bladeLevel * presence;
+      }
     }
 
     smokeLevel += ((st.smoke || 0) - smokeLevel) * Math.min(1, dt * 3);
