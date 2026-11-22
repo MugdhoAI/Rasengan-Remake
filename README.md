@@ -9,18 +9,16 @@ Live demo: https://rasengan-remake.vercel.app/
 ## Styles
 
 - **Classic**: a blue sphere of tangled energy filaments, white, pale blue and gold threads crisscrossing over a bright core.
-- **Magnet Release**: deep blue covered in hundreds of small dark tomoe seals, with black orbs circling the sphere.
-- **Lava Release**: a bright molten surface of orange flows and white hot areas with thin dark crust, embers flying off, and a pale smoke cloud behind the sphere.
-- **Wind Rasenshuriken**: a bright wind sphere pulled in tight, inside a flat, dense disc of 9,000 tiny particles with four blade arms. Charge it with a fist and release, and the disc flares wide.
-- **Magnet Rasenshuriken**: the Magnet sphere inside a blue wing disc flecked with dark seals.
-- **Lava Rasenshuriken**: the Lava sphere inside a wing disc that runs white hot at the core through orange to deep red at the tips, with embers and smoke.
+- **Wind Rasenshuriken**: a bright wind sphere pulled in tight, inside a flat, dense disc of 24,000 particles over a glowing disc with four blade wedges, so the wings read as one luminous saucer like the original effect video. Charge it with a fist and release, and the disc flares wide.
+- **Magnet Rasenshuriken**: a deep blue sphere covered in hundreds of small dark tomoe seals, black orbs circling it, inside a blue wing disc with the seals printed on the disc itself.
+- **Lava Rasenshuriken**: a bright molten sphere with embers and smoke, inside a wing disc that runs white hot at the core through orange to deep red at the tips.
 
 ## Controls
 
 - Open palm: the sphere fades in above your palm and follows your hand.
 - Fist: charge it. The sphere compresses, spins faster, and glows harder.
 - Open your hand after a charge: release. The energy pulses out, widest in the Rasenshuriken styles.
-- Keys 1 to 6 or the buttons at the bottom: switch style.
+- Keys 1 to 4 or the buttons at the bottom: switch style.
 - Take your hand away: the sphere fades out, like the original. Show your palm to bring it back.
 
 ## Run it locally
