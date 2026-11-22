@@ -283,19 +283,8 @@
     for (i = 0; i < stops.length; i++) g.addColorStop(stops[i][0], stops[i][1]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, S, S);
-    ctx.fillStyle = mode === "lava" ? "rgba(255,220,120,0.09)" : "rgba(255,255,255,0.08)";
-    for (var b = 0; b < 4; b++) {
-      ctx.save();
-      ctx.translate(cx, cx);
-      ctx.rotate(b * Math.PI / 2);
-      ctx.beginPath();
-      ctx.moveTo(30, 0);
-      ctx.quadraticCurveTo(120, -34, 238, -10);
-      ctx.quadraticCurveTo(150, 22, 40, 20);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    }
+    // No blade wedges: at full spin the reference disc is one uniform
+    // saucer of light, the blades blur away completely.
     if (mode === "magnet") {
       for (i = 0; i < 110; i++) {
         var a = Math.random() * Math.PI * 2;
@@ -502,13 +491,14 @@
         var ra = Math.random() * Math.PI * 2;
         var rr = 0.85 + Math.random() * 0.35;
         x = Math.cos(ra) * rr; y = Math.sin(ra) * rr; t = 0.12;
-      } else if (kind < 0.52) {
-        // Blade arm: broad and filled, gently curved, reaching wide
+      } else if (kind < 0.16) {
+        // A whisper of blade structure only: few particles, spread
+        // wide, so no arm can be picked out at full spin
         var b = i % 4;
         var tt = Math.pow(Math.random(), 0.8);
         var ang = b * Math.PI / 2 + tt * 0.8;
         var rad = 0.5 + tt * 2.05;
-        var off = (Math.random() - 0.5) * 0.4 * (1 - tt * 0.3);
+        var off = (Math.random() - 0.5) * 0.8 * (1 - tt * 0.3);
         x = Math.cos(ang) * rad - Math.sin(ang) * off;
         y = Math.sin(ang) * rad + Math.cos(ang) * off;
         t = tt;
@@ -516,7 +506,7 @@
         // Disc fill between the arms, thinned toward the rim so the
         // edge fades soft like the video instead of ending hard
         var fa = Math.random() * Math.PI * 2;
-        var fr = 0.5 + 2.05 * Math.pow(Math.random(), 0.75);
+        var fr = 0.5 + 2.05 * Math.pow(Math.random(), 0.55);
         if (fr > 2.2 && Math.random() < 0.5) fr = 0.6 + Math.random() * 1.5;
         x = Math.cos(fa) * fr; y = Math.sin(fa) * fr;
         t = (fr - 0.5) / 2.05;
@@ -548,9 +538,10 @@
   // Wind around the Rasenshuriken: fast thin streaks circling the
   // disc and slow mist sprites drifting at the rim. In the reference
   // the disc itself is smooth light; the wind is what moves around it.
-  var WIND_N = 340;
+  var WIND_N = 260;
   var windGeo = new THREE.BufferGeometry();
   var windPos = new Float32Array(WIND_N * 2 * 3);
+  var windCol = new Float32Array(WIND_N * 2 * 3);
   var windAng = new Float32Array(WIND_N);
   var windRad = new Float32Array(WIND_N);
   var windLen = new Float32Array(WIND_N);
@@ -558,14 +549,20 @@
   (function initWind() {
     for (var i = 0; i < WIND_N; i++) {
       windAng[i] = Math.random() * Math.PI * 2;
-      windRad[i] = 1.25 + Math.pow(Math.random(), 1.3) * 1.75;
-      windLen[i] = 0.12 + Math.random() * 0.3;
-      windSpd[i] = 0.8 + Math.random() * 0.8;
+      windRad[i] = 1.6 + Math.pow(Math.random(), 1.2) * 1.6;
+      windLen[i] = 0.08 + Math.random() * 0.18;
+      windSpd[i] = 0.7 + Math.random() * 0.9;
+      // Each streak has its own brightness and a fading tail, so the
+      // set reads as irregular air, not drawn circles
+      var b = 0.25 + Math.random() * 0.55;
+      windCol[i * 6] = b; windCol[i * 6 + 1] = b; windCol[i * 6 + 2] = b;
+      windCol[i * 6 + 3] = b * 0.35; windCol[i * 6 + 4] = b * 0.35; windCol[i * 6 + 5] = b * 0.35;
     }
   })();
   windGeo.setAttribute("position", new THREE.BufferAttribute(windPos, 3));
+  windGeo.setAttribute("color", new THREE.BufferAttribute(windCol, 3));
   var windMat = new THREE.LineBasicMaterial({
-    color: 0x9fe8ff, transparent: true, opacity: 0,
+    color: 0x9fe8ff, vertexColors: true, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false
   });
   var windGroup = new THREE.Group();
@@ -580,11 +577,11 @@
     windMists.push({
       sprite: mist,
       ang: Math.random() * Math.PI * 2,
-      rad: 1.5 + Math.random() * 1.4,
+      rad: 1.9 + Math.random() * 1.2,
       spd: 0.3 + Math.random() * 0.4,
       scl: 1.6 + Math.random() * 1.4,
       ph: Math.random() * Math.PI * 2,
-      base: 0.05 + Math.random() * 0.04
+      base: 0.04 + Math.random() * 0.03
     });
   }
   windGroup.visible = false;
@@ -642,7 +639,7 @@
   var orbMeshes = [];
   for (var oi = 0; oi < 5; oi++) {
     var orbMat = new THREE.MeshBasicMaterial({ color: 0x0a0d18, transparent: true, opacity: 0 });
-    var orb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 20, 20), orbMat);
+    var orb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 20, 20), orbMat);
     var rim = new THREE.Sprite(new THREE.SpriteMaterial({
       map: glowTex, color: 0x2f6bff, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false
@@ -885,17 +882,19 @@
     windGroup.visible = bladeLevel > 0.02;
     if (windGroup.visible) {
       windAngle += dt * (8 + charge * 6) * (pulseT >= 0 ? 1.5 : 1);
-      windMat.opacity = 0.5 * bladeLevel * presence;
+      windMat.opacity = 0.38 * bladeLevel * presence;
       for (var w = 0; w < WIND_N; w++) {
         var wa = windAng[w] + windAngle * windSpd[w];
         var wr = windRad[w];
-        var wz = Math.sin(windAng[w] * 3) * 0.06;
+        var wz = Math.sin(windAng[w] * 3) * 0.12;
         windPos[w * 6] = Math.cos(wa) * wr;
         windPos[w * 6 + 1] = Math.sin(wa) * wr;
         windPos[w * 6 + 2] = wz;
-        windPos[w * 6 + 3] = Math.cos(wa + windLen[w]) * wr;
-        windPos[w * 6 + 4] = Math.sin(wa + windLen[w]) * wr;
-        windPos[w * 6 + 5] = wz;
+        // The tail sits a little further out, so streaks slant like
+        // streaming air instead of tracing perfect circles
+        windPos[w * 6 + 3] = Math.cos(wa + windLen[w]) * wr * 1.05;
+        windPos[w * 6 + 4] = Math.sin(wa + windLen[w]) * wr * 1.05;
+        windPos[w * 6 + 5] = wz * 0.6;
       }
       windGeo.attributes.position.needsUpdate = true;
       for (var m = 0; m < windMists.length; m++) {
@@ -929,7 +928,7 @@
     if (orbGroup.visible) {
       for (var o = 0; o < orbMeshes.length; o++) {
         var oa = spinAngle * 0.6 + (o / orbMeshes.length) * Math.PI * 2;
-        orbMeshes[o].position.set(Math.cos(oa) * 1.26, Math.sin(oa) * 0.38, Math.sin(oa) * 1.26);
+        orbMeshes[o].position.set(Math.cos(oa) * 1.12, Math.sin(oa) * 0.38, Math.sin(oa) * 1.12);
         orbMeshes[o].material.opacity = presence;
         orbMeshes[o].children[0].material.opacity = 0.3 * presence;
       }
