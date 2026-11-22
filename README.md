@@ -4,7 +4,7 @@ A Rasengan that lives in your palm, generated live with particles. No effect vid
 
 Inspired by vietnh1009/Naruto, rebuilt from scratch with a procedural engine, so new chakra natures are just new style data.
 
-Live demo: coming with the first deploy.
+Live demo: https://rasengan-remake.vercel.app/
 
 ## Styles
 
