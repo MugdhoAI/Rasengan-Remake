@@ -1,4 +1,4 @@
-# Rasengan Remake
+# Wind Style Rasen Shuriken
 
 A Rasengan that appears above your palm and follows your hand through the webcam. No effect videos: each style has its own surface, drawn in code from the anime and wrapped on a sphere, with sparks, embers and blades generated live around it.
 
