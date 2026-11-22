@@ -50,8 +50,8 @@
   }
   .style-btn small { display: block; font-weight: 400; font-size: 11px; color: var(--ui-muted); letter-spacing: 0; }
   .style-btn.active { border-color: rgba(255, 255, 255, 0.65); background: rgba(255, 255, 255, 0.16); }
-  .style-btn[data-style="magnet"].active { box-shadow: 0 0 18px rgba(70, 130, 255, 0.55); }
-  .style-btn[data-style="lava"].active { box-shadow: 0 0 18px rgba(255, 110, 30, 0.55); }
+  .style-btn[data-style="magnet"].active, .style-btn[data-style="magnetShuriken"].active { box-shadow: 0 0 18px rgba(70, 130, 255, 0.55); }
+  .style-btn[data-style="lava"].active, .style-btn[data-style="lavaShuriken"].active { box-shadow: 0 0 18px rgba(255, 110, 30, 0.55); }
   .style-btn[data-style="classic"].active { box-shadow: 0 0 18px rgba(140, 210, 255, 0.55); }
   .style-btn[data-style="shuriken"].active { box-shadow: 0 0 18px rgba(170, 240, 255, 0.6); }
 </style>
@@ -63,7 +63,7 @@
 
   <div id="hud" class="panel">
     <div class="title">Rasengan Remake</div>
-    <div class="sub">A Rasengan that appears above your palm. Each style has its own surface, drawn in code from the anime: molten rock, seal swirls, wind streaks.</div>
+    <div class="sub">A Rasengan that appears above your palm. Six styles, each with its own surface drawn in code from the anime, and a flat dense wing disc for the three Rasenshuriken.</div>
     <div id="status">Starting camera...</div>
   </div>
 
@@ -72,15 +72,17 @@
     <div>1. Show your open palm. The Rasengan appears above it.</div>
     <div>2. Move your hand. The Rasengan follows you.</div>
     <div>3. Make a fist to charge it. Open your hand to release it.</div>
-    <div>4. Press 1, 2, 3, 4 or tap a button to change the style.</div>
+    <div>4. Press 1 to 6 or tap a button to change the style.</div>
     <div>5. Take your hand away. The Rasengan fades out.</div>
   </div>
 
   <div id="styles" class="panel">
     <button class="style-btn active" data-style="classic">1 · Classic<small>Wind blue Rasengan</small></button>
-    <button class="style-btn" data-style="magnet">2 · Magnet<small>Jiton, seal swirls</small></button>
-    <button class="style-btn" data-style="lava">3 · Lava<small>Yoton, molten core</small></button>
-    <button class="style-btn" data-style="shuriken">4 · Shuriken<small>Rasenshuriken, four blades</small></button>
+    <button class="style-btn" data-style="magnet">2 · Magnet<small>Jiton Rasengan</small></button>
+    <button class="style-btn" data-style="lava">3 · Lava<small>Yoton Rasengan</small></button>
+    <button class="style-btn" data-style="shuriken">4 · Wind Shuriken<small>Rasenshuriken</small></button>
+    <button class="style-btn" data-style="magnetShuriken">5 · Magnet Shuriken<small>Jiton Rasenshuriken</small></button>
+    <button class="style-btn" data-style="lavaShuriken">6 · Lava Shuriken<small>Yoton Rasenshuriken</small></button>
   </div>
 </div>
 
@@ -96,10 +98,10 @@
 
   // ============================================================
   // Surfaces, drawn in code from the reference images.
-  // Each style gets a 1024x512 canvas texture wrapped on a sphere.
-  // Lava: mottled molten blobs, bright hot spots, dark crust.
-  // Magnet: deep blue with dark tomoe seal clusters swirled on it.
-  // Classic and Shuriken: pale blue with white wind streaks.
+  // Classic: chaotic thin filaments, white, blue and gold, like the
+  // giant Rasengan of tangled energy threads.
+  // Magnet: deep blue with hundreds of small dark tomoe seals.
+  // Lava: bright molten orange, big hot areas, thin dark crust.
   // ============================================================
   function makeCanvas(w, h) {
     var c = document.createElement("canvas");
@@ -107,8 +109,6 @@
     return c;
   }
 
-  // Soft edged blob, drawn three times across the width so the
-  // texture wraps around the sphere with no seam.
   function blob(ctx, W, x, y, r, color, alpha) {
     for (var k = -1; k <= 1; k++) {
       var gx = x + k * W;
@@ -135,41 +135,47 @@
     }
   }
 
-  function lavaTexture() {
+  function windTexture(hot) {
     var W = 1024, H = 512, c = makeCanvas(W, H), ctx = c.getContext("2d");
-    ctx.fillStyle = "#8a2000";
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, hot ? "#8fd0ff" : "#6db9f7");
+    grad.addColorStop(0.5, hot ? "#4db2ff" : "#2f8fe8");
+    grad.addColorStop(1, hot ? "#2b7de0" : "#1763b8");
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
-    var i, x, y;
-    // Deep flow tones
-    for (i = 0; i < 90; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 60 + Math.random() * 130, "#c33d00", 0.35);
-    for (i = 0; i < 80; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 40 + Math.random() * 90, "#ff7b00", 0.4);
-    // Bright molten patches
-    for (i = 0; i < 130; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 16 + Math.random() * 44, "#ffa63f", 0.55);
-    // White hot spots, the brightest points in the reference
-    for (i = 0; i < 110; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 6 + Math.random() * 20, "#fff3c4", 0.75);
-    for (i = 0; i < 40; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 3 + Math.random() * 8, "#ffffff", 0.85);
-    // Dark crust, cooling rock between the flows
-    for (i = 0; i < 120; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 10 + Math.random() * 34, "#380d02", 0.4);
-    // Crust cracks: short dark strokes
-    ctx.strokeStyle = "#2a0800";
-    ctx.lineCap = "round";
-    for (i = 0; i < 60; i++) {
-      x = Math.random() * W; y = Math.random() * H;
-      ctx.save();
-      ctx.globalAlpha = 0.35 + Math.random() * 0.3;
-      ctx.lineWidth = 1.5 + Math.random() * 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 40,
-                           x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 70);
-      ctx.stroke();
-      ctx.restore();
+    var i;
+    // Soft churn underneath the filaments
+    for (i = 0; i < 46; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 30 + Math.random() * 80, "#bfe6ff", 0.20);
+    // Chaotic filaments: thin arcs in every direction, tangled like
+    // the energy threads in the reference. Drawn at three x offsets
+    // so they wrap the sphere with no seam.
+    var cols = ["#ffffff", "#eaf7ff", "#cfeaff", "#ffe9a8"];
+    var colW = [0.42, 0.28, 0.18, 0.12];
+    for (i = 0; i < 300; i++) {
+      var cx = Math.random() * W, cy = Math.random() * H;
+      var r = 26 + Math.random() * 170;
+      var a0 = Math.random() * Math.PI * 2;
+      var span = 0.6 + Math.random() * 2.2;
+      var colr = cols[0], acc = 0, pick = Math.random();
+      for (var ci = 0; ci < cols.length; ci++) { acc += colW[ci]; if (pick <= acc) { colr = cols[ci]; break; } }
+      ctx.strokeStyle = colr;
+      ctx.lineCap = "round";
+      for (var k = -1; k <= 1; k++) {
+        ctx.save();
+        ctx.globalAlpha = 0.10 + Math.random() * 0.22;
+        ctx.lineWidth = 1 + Math.random() * 2.6;
+        ctx.beginPath();
+        ctx.arc(cx + k * W, cy, r, a0, a0 + span);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
-    grain(ctx, W, H, 500, "#ffd23f", 0.25, 2);
+    // Brighter knot of threads near the centre of the front face
+    for (i = 0; i < 26; i++) blob(ctx, W, W * 0.5 + (Math.random() - 0.5) * 260, H * 0.5 + (Math.random() - 0.5) * 150, 16 + Math.random() * 42, "#ffffff", 0.30);
+    grain(ctx, W, H, 350, "#ffffff", 0.3, 1.8);
     return new THREE.CanvasTexture(c);
   }
 
-  // One tomoe (magatama swirl): a round head with a curved tail.
   function tomoe(ctx, x, y, r, rot, color, alpha) {
     ctx.save();
     ctx.translate(x, y);
@@ -179,7 +185,6 @@
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
-    // Tail sweeping out of the head
     ctx.beginPath();
     ctx.moveTo(r * 0.2, -r * 0.9);
     ctx.bezierCurveTo(r * 1.7, -r * 0.7, r * 1.9, r * 0.6, r * 0.9, r * 1.15);
@@ -197,64 +202,72 @@
     grad.addColorStop(1, "#1a44b8");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
-    var i;
-    // Light bloom patches so the blue is not flat
-    for (i = 0; i < 50; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 40 + Math.random() * 90, "#8fb8ff", 0.28);
-    for (i = 0; i < 26; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 20 + Math.random() * 50, "#dceaff", 0.3);
-    // Tomoe seal clusters, the dark swirls that cover the reference
-    for (i = 0; i < 64; i++) {
-      var cx = Math.random() * W, cy = Math.random() * H;
-      var n = 2 + Math.floor(Math.random() * 3);
-      for (var j = 0; j < n; j++) {
-        var tx = cx + (Math.random() - 0.5) * 90;
-        var ty = cy + (Math.random() - 0.5) * 60;
-        var tr = 9 + Math.random() * 15;
-        // wrap draw for the seam
-        for (var k = -1; k <= 1; k++) {
-          tomoe(ctx, tx + k * W, ty, tr, Math.random() * Math.PI * 2, "#060d2e", 0.88);
-        }
+    var i, k;
+    for (i = 0; i < 40; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 34 + Math.random() * 70, "#8fb8ff", 0.22);
+    // Hundreds of small tomoe, spread over the whole surface with a
+    // light clustering, the way the reference sphere is covered.
+    for (i = 0; i < 330; i++) {
+      var x = Math.random() * W, y = Math.random() * H;
+      var r = 5 + Math.random() * 7;
+      var rot = Math.random() * Math.PI * 2;
+      var a = 0.78 + Math.random() * 0.2;
+      for (k = -1; k <= 1; k++) tomoe(ctx, x + k * W, y, r, rot, "#071233", a);
+      // a neighbour close by, seals come in swirls
+      if (Math.random() < 0.55) {
+        var x2 = x + (Math.random() - 0.5) * 44, y2 = y + (Math.random() - 0.5) * 34;
+        for (k = -1; k <= 1; k++) tomoe(ctx, x2 + k * W, y2, r * 0.85, rot + 1.2, "#071233", a);
       }
     }
-    // A few lone large seals, like the big ones in the reference
-    for (i = 0; i < 14; i++) {
-      var lx = Math.random() * W, ly = Math.random() * H;
-      for (var k2 = -1; k2 <= 1; k2++) {
-        tomoe(ctx, lx + k2 * W, ly, 20 + Math.random() * 12, Math.random() * Math.PI * 2, "#050a26", 0.9);
+    // Thin dark spiral arcs between the seals
+    ctx.strokeStyle = "#0a1a4a";
+    ctx.lineCap = "round";
+    for (i = 0; i < 70; i++) {
+      var sx = Math.random() * W, sy = Math.random() * H;
+      var sr = 12 + Math.random() * 26, sa = Math.random() * Math.PI * 2;
+      for (k = -1; k <= 1; k++) {
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 2 + Math.random() * 2;
+        ctx.beginPath();
+        ctx.arc(sx + k * W, sy, sr, sa, sa + 1.4 + Math.random());
+        ctx.stroke();
+        ctx.restore();
       }
     }
-    grain(ctx, W, H, 350, "#bcd6ff", 0.3, 1.8);
+    grain(ctx, W, H, 300, "#bcd6ff", 0.25, 1.6);
     return new THREE.CanvasTexture(c);
   }
 
-  function windTexture(hot) {
+  function lavaTexture() {
     var W = 1024, H = 512, c = makeCanvas(W, H), ctx = c.getContext("2d");
-    var grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, hot ? "#cfeeff" : "#9fd4ff");
-    grad.addColorStop(0.5, hot ? "#7cc9ff" : "#54a9f5");
-    grad.addColorStop(1, hot ? "#3f9bf0" : "#1c6fd6");
-    ctx.fillStyle = grad;
+    ctx.fillStyle = "#9c2a00";
     ctx.fillRect(0, 0, W, H);
-    var i;
-    // Swirling wind streaks: long wavy strokes flowing sideways
-    for (i = 0; i < 110; i++) {
-      var y = Math.random() * H;
-      var x = Math.random() * W - 200;
-      var len = 140 + Math.random() * 320;
-      var wob = (Math.random() - 0.5) * 46;
+    var i, x, y;
+    // Broad bright flows first, the reference ball is mostly bright
+    for (i = 0; i < 70; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 70 + Math.random() * 150, "#d64a00", 0.5);
+    for (i = 0; i < 90; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 44 + Math.random() * 100, "#ff7b00", 0.5);
+    for (i = 0; i < 150; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 18 + Math.random() * 52, "#ffa63f", 0.6);
+    // Hot areas
+    for (i = 0; i < 130; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 10 + Math.random() * 30, "#ffd23f", 0.7);
+    for (i = 0; i < 90; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 6 + Math.random() * 18, "#fff3c4", 0.8);
+    for (i = 0; i < 34; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 3 + Math.random() * 8, "#ffffff", 0.85);
+    // Thin crust only, small dark flecks and short cracks
+    for (i = 0; i < 70; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 8 + Math.random() * 20, "#4a1202", 0.30);
+    ctx.strokeStyle = "#380d02";
+    ctx.lineCap = "round";
+    for (i = 0; i < 44; i++) {
+      x = Math.random() * W; y = Math.random() * H;
       ctx.save();
-      ctx.strokeStyle = "#ffffff";
-      ctx.globalAlpha = 0.10 + Math.random() * 0.22;
-      ctx.lineWidth = 2 + Math.random() * 7;
-      ctx.lineCap = "round";
+      ctx.globalAlpha = 0.3 + Math.random() * 0.25;
+      ctx.lineWidth = 1.2 + Math.random() * 2;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(x + len / 2, y + wob, x + len, y + wob * 0.3);
+      ctx.quadraticCurveTo(x + (Math.random() - 0.5) * 34, y + (Math.random() - 0.5) * 34,
+                           x + (Math.random() - 0.5) * 56, y + (Math.random() - 0.5) * 56);
       ctx.stroke();
       ctx.restore();
     }
-    // Bright churn near the middle band
-    for (i = 0; i < 60; i++) blob(ctx, W, Math.random() * W, H * 0.3 + Math.random() * H * 0.4, 14 + Math.random() * 40, "#ffffff", hot ? 0.4 : 0.3);
-    grain(ctx, W, H, 400, "#ffffff", 0.3, 1.8);
+    grain(ctx, W, H, 420, "#ffd23f", 0.25, 2);
     return new THREE.CanvasTexture(c);
   }
 
@@ -262,40 +275,60 @@
     var c = makeCanvas(256, 256), ctx = c.getContext("2d");
     var g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
     g.addColorStop(0, "rgba(255,255,255,0.9)");
-    g.addColorStop(0.55, "rgba(190,235,255,0.35)");
-    g.addColorStop(1, "rgba(190,235,255,0)");
+    g.addColorStop(0.55, "rgba(255,255,255,0.32)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 256, 256);
     return new THREE.CanvasTexture(c);
   }
 
   // ---------- Style definitions ----------
+  // wings: null, or the colour mode of the Rasenshuriken wing disc.
   var STYLES = {
     classic: {
       label: "Classic Rasengan", tex: "wind",
       glow: 0x4db2ff, spin: 1.1, flicker: 0.03,
       spark: [0xeaf7ff, 0x9fd4ff, 0x3f9bf0], sparkW: [0.4, 0.36, 0.24],
-      swirlColor: 0x7cc4ff, embers: 0, orbs: 0, blades: 0, smoke: 0, shellScale: 1
+      swirlColor: 0x7cc4ff, embers: 0, orbs: 0, smoke: 0, shellScale: 1,
+      wings: null, coreGlow: 0xeaf7ff, coreGlowO: 0.42, disc: 0xbfefff
     },
     magnet: {
       label: "Magnet Release Rasengan", tex: "magnet",
       glow: 0x2f6bff, spin: 1.3, flicker: 0.03,
       spark: [0xdceaff, 0x6fa8ff, 0x2f6bff], sparkW: [0.38, 0.36, 0.26],
-      swirlColor: 0x4d8dff, embers: 0, orbs: 5, blades: 0, smoke: 0, shellScale: 1
+      swirlColor: 0x4d8dff, embers: 0, orbs: 5, smoke: 0, shellScale: 1,
+      wings: null, coreGlow: 0x9fc2ff, coreGlowO: 0.22, disc: 0x2f6bff
     },
     lava: {
       label: "Lava Release Rasengan", tex: "lava",
       glow: 0xff6a00, spin: 0.8, flicker: 0.10,
       spark: [0xfff3c4, 0xffc93f, 0xff7b00], sparkW: [0.3, 0.38, 0.32],
-      swirlColor: 0xff8c2e, embers: 420, orbs: 0, blades: 0, smoke: 0.16, shellScale: 1
+      swirlColor: 0xff8c2e, embers: 420, orbs: 0, smoke: 0.16, shellScale: 1,
+      wings: null, coreGlow: 0xffe9b0, coreGlowO: 0.30, disc: 0xff8c2e
     },
     shuriken: {
-      label: "Rasenshuriken", tex: "windHot",
+      label: "Wind Rasenshuriken", tex: "windHot",
       glow: 0x8fe3ff, spin: 1.5, flicker: 0.04,
       spark: [0xffffff, 0xdff4ff, 0x9fe0ff], sparkW: [0.4, 0.34, 0.26],
-      swirlColor: 0x9fe8ff, embers: 0, orbs: 0, blades: 1, smoke: 0, shellScale: 0.82
+      swirlColor: 0x9fe8ff, embers: 0, orbs: 0, smoke: 0, shellScale: 0.8,
+      wings: "wind", coreGlow: 0xffffff, coreGlowO: 0.5, disc: 0xbfefff
+    },
+    magnetShuriken: {
+      label: "Magnet Rasenshuriken", tex: "magnet",
+      glow: 0x2f6bff, spin: 1.6, flicker: 0.04,
+      spark: [0xdceaff, 0x6fa8ff, 0x2f6bff], sparkW: [0.38, 0.36, 0.26],
+      swirlColor: 0x4d8dff, embers: 0, orbs: 5, smoke: 0, shellScale: 0.8,
+      wings: "magnet", coreGlow: 0x9fc2ff, coreGlowO: 0.26, disc: 0x2f6bff
+    },
+    lavaShuriken: {
+      label: "Lava Rasenshuriken", tex: "lava",
+      glow: 0xff6a00, spin: 1.4, flicker: 0.10,
+      spark: [0xfff3c4, 0xffc93f, 0xff7b00], sparkW: [0.3, 0.38, 0.32],
+      swirlColor: 0xff8c2e, embers: 420, orbs: 0, smoke: 0.16, shellScale: 0.8,
+      wings: "lava", coreGlow: 0xffe9b0, coreGlowO: 0.36, disc: 0xff8c2e
     }
   };
+  var STYLE_ORDER = ["classic", "magnet", "lava", "shuriken", "magnetShuriken", "lavaShuriken"];
 
   function pickWeighted(colors, weights, r) {
     var acc = 0;
@@ -342,6 +375,7 @@
     return new THREE.CanvasTexture(c);
   }
   var glowTex = makeGlowTexture();
+  var discTex = discTexture();
 
   var textures = {
     wind: windTexture(false),
@@ -354,14 +388,12 @@
   group.visible = false;
   scene.add(group);
 
-  // Smoke (Lava), behind everything: a pale cloud rolling off the ball.
   var smoke = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0xe9e5da, transparent: true, opacity: 0, depthWrite: false
   }));
   smoke.scale.set(5.8, 5.2, 1);
   group.add(smoke);
 
-  // Glow halo behind the ball.
   var glow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0x4db2ff, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false
@@ -369,13 +401,21 @@
   glow.scale.set(3.3, 3.3, 1);
   group.add(glow);
 
-  // The ball itself: a real sphere wearing the drawn surface.
   var sphereMat = new THREE.MeshBasicMaterial({ map: textures.wind, transparent: true, opacity: 0 });
   var sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), sphereMat);
   group.add(sphere);
 
-  // Outer sparks: a thin shell of bright particles just above the
-  // surface. Bright only, additive is right for these.
+  // Hot core shining through the surface, drawn over the ball.
+  var coreGlowMat = new THREE.SpriteMaterial({
+    map: glowTex, color: 0xeaf7ff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+  });
+  var coreGlowSprite = new THREE.Sprite(coreGlowMat);
+  coreGlowSprite.scale.set(1.55, 1.55, 1);
+  coreGlowSprite.renderOrder = 5;
+  group.add(coreGlowSprite);
+
+  // Outer sparks, a thin shell of bright particles above the surface.
   var SHELL_N = 3400;
   var shellGeo = new THREE.BufferGeometry();
   var shellPos = new Float32Array(SHELL_N * 3);
@@ -391,20 +431,20 @@
       var y = 1 - (i / (SHELL_N - 1)) * 2;
       shellPhi[i] = Math.acos(Math.max(-1, Math.min(1, y)));
       shellTheta[i] = golden * i;
-      shellRad[i] = 1.03 + Math.random() * 0.22;
+      shellRad[i] = 1.02 + Math.random() * 0.14;
       shellSeed[i] = Math.random();
     }
   })();
   shellGeo.setAttribute("position", new THREE.BufferAttribute(shellPos, 3));
   shellGeo.setAttribute("color", new THREE.BufferAttribute(shellCol, 3));
   var shellMat = new THREE.PointsMaterial({
-    size: 4.4, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
+    size: 3.6, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
   });
   var shell = new THREE.Points(shellGeo, shellMat);
   group.add(shell);
 
-  // Swirl disc of streaks around the ball (hidden in Shuriken style).
+  // Swirl disc of streaks around Rasengan styles (not the Shuriken).
   var SWIRL_N = 650;
   var swirlGeo = new THREE.BufferGeometry();
   var swirlPos = new Float32Array(SWIRL_N * 3);
@@ -426,48 +466,90 @@
   var swirl = new THREE.Points(swirlGeo, swirlMat);
   group.add(swirl);
 
-  // Rasenshuriken blades: four curved particle blades in the plane
-  // facing the camera, a soft disc behind them, all spinning on Z.
-  var BLADE_N = 3600;
+  // ============================================================
+  // The wing disc. Flat, dense, tiny particles, like the video:
+  // a full disc of fine grain with four tighter blade arms inside
+  // it. Colours are per particle and restyle with the mode.
+  // ============================================================
+  var BLADE_N = 9000;
   var bladeGeo = new THREE.BufferGeometry();
   var bladePos = new Float32Array(BLADE_N * 3);
+  var bladeCol = new Float32Array(BLADE_N * 3);
+  var bladeT = new Float32Array(BLADE_N);    // 0 core .. 1 wing tip
+  var bladeSeed = new Float32Array(BLADE_N);
   (function initBlades() {
     for (var i = 0; i < BLADE_N; i++) {
-      var x, y;
-      if (i < 600) {
+      var x, y, t;
+      var kind = Math.random();
+      if (i < 700) {
         var ra = Math.random() * Math.PI * 2;
-        var rr = 0.95 + Math.random() * 0.3;
-        x = Math.cos(ra) * rr; y = Math.sin(ra) * rr;
-      } else {
-        var blade = i % 4;
-        var t = Math.pow(Math.random(), 0.8);
-        var ang = blade * Math.PI / 2 + t * 1.05;
-        var rad = 0.62 + t * 1.85;
-        var off = (Math.random() - 0.5) * 0.36 * (1 - t * 0.45);
+        var rr = 0.9 + Math.random() * 0.35;
+        x = Math.cos(ra) * rr; y = Math.sin(ra) * rr; t = 0.12;
+      } else if (kind < 0.46) {
+        // Blade arm: tight, gently curved
+        var b = i % 4;
+        var tt = Math.pow(Math.random(), 0.85);
+        var ang = b * Math.PI / 2 + tt * 0.85;
+        var rad = 0.55 + tt * 1.8;
+        var off = (Math.random() - 0.5) * 0.2 * (1 - tt * 0.35);
         x = Math.cos(ang) * rad - Math.sin(ang) * off;
         y = Math.sin(ang) * rad + Math.cos(ang) * off;
+        t = tt;
+      } else {
+        // Disc fill between the arms
+        var fa = Math.random() * Math.PI * 2;
+        var fr = 0.55 + 1.8 * Math.pow(Math.random(), 0.7);
+        x = Math.cos(fa) * fr; y = Math.sin(fa) * fr;
+        t = (fr - 0.55) / 1.8;
       }
       bladePos[i * 3] = x;
       bladePos[i * 3 + 1] = y;
-      bladePos[i * 3 + 2] = (Math.random() - 0.5) * 0.06;
+      bladePos[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+      bladeT[i] = t;
+      bladeSeed[i] = Math.random();
     }
   })();
   bladeGeo.setAttribute("position", new THREE.BufferAttribute(bladePos, 3));
+  bladeGeo.setAttribute("color", new THREE.BufferAttribute(bladeCol, 3));
   var bladeMat = new THREE.PointsMaterial({
-    size: 7, map: glowTex, color: 0xeafcff, transparent: true, opacity: 0,
+    size: 2.8, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
   });
   var bladeGroup = new THREE.Group();
-  var bladeDisc = new THREE.Mesh(
-    new THREE.CircleGeometry(2.5, 40),
-    new THREE.MeshBasicMaterial({ map: discTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
-  );
+  var bladeDiscMat = new THREE.MeshBasicMaterial({
+    map: discTex, color: 0xbfefff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+  });
+  var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(2.45, 40), bladeDiscMat);
   bladeGroup.add(bladeDisc);
   bladeGroup.add(new THREE.Points(bladeGeo, bladeMat));
   bladeGroup.visible = false;
   group.add(bladeGroup);
 
-  // Embers (Lava): sparks thrown off the surface that arc and fall.
+  var _cA = new THREE.Color(), _cB = new THREE.Color(), _cOut = new THREE.Color();
+  function bladeColors(mode) {
+    for (var i = 0; i < BLADE_N; i++) {
+      var t = bladeT[i], s = bladeSeed[i];
+      if (mode === "lava") {
+        if (t < 0.5) _cOut.lerpColors(_cA.setHex(0xfff3c4), _cB.setHex(0xff9a1f), t * 2);
+        else _cOut.lerpColors(_cA.setHex(0xff9a1f), _cB.setHex(0xc22e00), (t - 0.5) * 2);
+      } else if (mode === "magnet") {
+        _cOut.lerpColors(_cA.setHex(0x8fb8ff), _cB.setHex(0x2f6bff), t);
+        if (s > 0.85) _cOut.setHex(0x060d2e); // seal flecks in the wings
+      } else {
+        _cOut.lerpColors(_cA.setHex(0xffffff), _cB.setHex(0x8fd8ff), t);
+      }
+      _cOut.offsetHSL(0, 0, (s - 0.5) * 0.05);
+      bladeCol[i * 3] = _cOut.r; bladeCol[i * 3 + 1] = _cOut.g; bladeCol[i * 3 + 2] = _cOut.b;
+    }
+    bladeGeo.attributes.color.needsUpdate = true;
+    // Dark seals can only be seen with normal blending; bright wing
+    // modes keep additive light.
+    bladeMat.blending = mode === "magnet" ? THREE.NormalBlending : THREE.AdditiveBlending;
+    bladeMat.needsUpdate = true;
+  }
+
+  // Embers (Lava styles).
   var EMBER_MAX = 420;
   var emberGeo = new THREE.BufferGeometry();
   var emberPos = new Float32Array(EMBER_MAX * 3);
@@ -495,17 +577,17 @@
     emberLife[i] = 0.7 + Math.random() * 0.9;
   }
 
-  // Orbiting black orbs (Magnet), small and close, with a blue rim.
+  // Orbiting black orbs (Magnet styles), small and close.
   var orbGroup = new THREE.Group();
   var orbMeshes = [];
   for (var oi = 0; oi < 5; oi++) {
     var orbMat = new THREE.MeshBasicMaterial({ color: 0x0a0d18, transparent: true, opacity: 0 });
-    var orb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 20), orbMat);
+    var orb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 20, 20), orbMat);
     var rim = new THREE.Sprite(new THREE.SpriteMaterial({
       map: glowTex, color: 0x2f6bff, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    rim.scale.set(0.3, 0.3, 1);
+    rim.scale.set(0.26, 0.26, 1);
     orb.add(rim);
     orbGroup.add(orb);
     orbMeshes.push(orb);
@@ -518,6 +600,7 @@
   var colorBlend = 1;
   var bladeLevel = 0;
   var smokeLevel = 0;
+  var bladeOpacityBase = 0.9;
 
   function applyStyle(name) {
     var st = STYLES[name];
@@ -525,6 +608,7 @@
     sphereMat.needsUpdate = true;
     glow.material.color.setHex(st.glow);
     swirlMat.color.setHex(st.swirlColor);
+    coreGlowMat.color.setHex(st.coreGlow);
     var col = new THREE.Color();
     for (var i = 0; i < SHELL_N; i++) {
       col.setHex(pickWeighted(st.spark, st.sparkW, shellSeed[i]));
@@ -534,6 +618,11 @@
       }
     }
     shellGeo.attributes.color.needsUpdate = true;
+    if (st.wings) {
+      bladeColors(st.wings);
+      bladeDiscMat.color.setHex(st.disc);
+      bladeOpacityBase = st.wings === "magnet" ? 0.95 : 0.9;
+    }
     embers.visible = st.embers > 0;
     if (embers.visible) for (var e = 0; e < EMBER_MAX; e++) respawnEmber(e, 1.05);
     orbGroup.visible = st.orbs > 0;
@@ -553,10 +642,8 @@
     b.addEventListener("click", function () { setStyle(b.getAttribute("data-style")); });
   });
   window.addEventListener("keydown", function (ev) {
-    if (ev.key === "1") setStyle("classic");
-    else if (ev.key === "2") setStyle("magnet");
-    else if (ev.key === "3") setStyle("lava");
-    else if (ev.key === "4") setStyle("shuriken");
+    var idx = parseInt(ev.key, 10);
+    if (idx >= 1 && idx <= 6) setStyle(STYLE_ORDER[idx - 1]);
   });
   applyStyle("classic");
 
@@ -581,7 +668,7 @@
     cy += (lm[9].y - lm[0].y) * 0.35;
 
     var palmW = dist(lm[5], lm[17]);
-    var w = screenToWorld(1 - cx, cy); // video is mirrored
+    var w = screenToWorld(1 - cx, cy);
     target.x = w.x; target.y = w.y;
     target.radius = Math.max(40, Math.min(150, palmW * viewW * 1.15));
 
@@ -627,7 +714,7 @@
   var charge = 0;
   var wasFist = false;
   var pulseT = -1;
-  var presence = 0; // 0 hidden .. 1 fully shown, follows the palm
+  var presence = 0;
   var handLive = false;
   var lastT = performance.now();
 
@@ -638,8 +725,6 @@
     lastT = now;
     var st = STYLES[currentStyle];
 
-    // Like the original: the effect exists only while a palm is on
-    // screen. It fades in above the palm and fades out where it was.
     var live = target.has && now - lastHandAt < 1200;
     if (live !== handLive) {
       handLive = live;
@@ -667,7 +752,7 @@
       pulseT += dt;
       var pt = pulseT / 0.9;
       if (pt >= 1) pulseT = -1;
-      else pulseScale = 1 + Math.sin(pt * Math.PI) * (currentStyle === "shuriken" ? 1.9 : 0.55);
+      else pulseScale = 1 + Math.sin(pt * Math.PI) * (st.wings ? 1.9 : 0.55);
     }
 
     var R = pos.radius * (1 - charge * 0.24) * (0.72 + 0.28 * presence);
@@ -675,18 +760,16 @@
     group.position.set(pos.x, pos.y + Math.sin(now * 0.0016) * 3.5, 0);
     group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
 
-    // Fade every layer with presence.
     sphereMat.opacity = presence;
     glow.material.opacity = (0.5 + charge * 0.3 + (pulseT >= 0 ? 0.25 : 0)) * presence;
-    shellMat.opacity = 0.9 * presence;
-    swirlMat.opacity = (st.blades ? 0.05 : 0.32 + charge * 0.25) * presence;
+    shellMat.opacity = 0.65 * presence;
+    swirlMat.opacity = (st.wings ? 0.05 : 0.32 + charge * 0.25) * presence;
     emberMat.opacity = 0.9 * presence;
+    coreGlowMat.opacity = st.coreGlowO * (1 + charge * 0.5) * presence;
 
-    // The surface itself turns, faster while charged.
     sphere.rotation.y += dt * st.spin * (1 + charge * 1.7);
     sphere.rotation.x = Math.sin(now * 0.0004) * 0.14;
 
-    // Sparks churn over the surface.
     spinAngle += dt * 2.4 * (1 + charge * 1.4);
     for (var i = 0; i < SHELL_N; i++) {
       var phi = shellPhi[i];
@@ -711,8 +794,8 @@
     var shNow = shell.scale.x + (shTarget - shell.scale.x) * Math.min(1, dt * 5);
     shell.scale.set(shNow, shNow, shNow);
     sphere.scale.set(shNow, shNow, shNow);
+    coreGlowSprite.scale.set(1.55 * shNow, 1.55 * shNow, 1);
 
-    // Swirl disc.
     for (var s = 0; s < SWIRL_N; s++) {
       var a = swirlAng[s] + spinAngle * 1.9;
       swirlPos[s * 3] = Math.cos(a) * swirlRad[s];
@@ -721,23 +804,21 @@
     }
     swirlGeo.attributes.position.needsUpdate = true;
 
-    // Blades.
-    bladeLevel += ((st.blades ? 1 : 0) - bladeLevel) * Math.min(1, dt * 6);
+    // Wing disc: spins fast, faster while charged and on release.
+    bladeLevel += ((st.wings ? 1 : 0) - bladeLevel) * Math.min(1, dt * 6);
     bladeGroup.visible = bladeLevel > 0.02;
     if (bladeGroup.visible) {
-      bladeMat.opacity = 0.9 * bladeLevel * presence;
-      bladeDisc.material.opacity = 0.16 * bladeLevel * presence;
-      bladeGroup.rotation.z -= dt * (7 + charge * 8) * (pulseT >= 0 ? 1.6 : 1);
+      bladeMat.opacity = bladeOpacityBase * bladeLevel * presence;
+      bladeDiscMat.opacity = 0.13 * bladeLevel * presence;
+      bladeGroup.rotation.z -= dt * (9 + charge * 7) * (pulseT >= 0 ? 1.6 : 1);
     }
 
-    // Smoke.
     smokeLevel += ((st.smoke || 0) - smokeLevel) * Math.min(1, dt * 3);
     smoke.material.opacity = smokeLevel * presence;
     var ss = 5.8 + Math.sin(now * 0.0011) * 0.35;
     smoke.scale.set(ss, ss * 0.9, 1);
     smoke.position.x = Math.sin(now * 0.0006) * 0.18;
 
-    // Embers.
     if (embers.visible) {
       for (var e2 = 0; e2 < EMBER_MAX; e2++) {
         emberLife[e2] -= dt;
@@ -750,11 +831,10 @@
       emberGeo.attributes.position.needsUpdate = true;
     }
 
-    // Orbs.
     if (orbGroup.visible) {
       for (var o = 0; o < orbMeshes.length; o++) {
         var oa = spinAngle * 0.6 + (o / orbMeshes.length) * Math.PI * 2;
-        orbMeshes[o].position.set(Math.cos(oa) * 1.34, Math.sin(oa) * 0.4, Math.sin(oa) * 1.34);
+        orbMeshes[o].position.set(Math.cos(oa) * 1.26, Math.sin(oa) * 0.38, Math.sin(oa) * 1.26);
         orbMeshes[o].material.opacity = presence;
         orbMeshes[o].children[0].material.opacity = 0.3 * presence;
       }
