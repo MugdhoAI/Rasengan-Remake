@@ -35,7 +35,8 @@
   #hud .title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
   #hud .sub { font-size: 12px; color: var(--ui-muted); }
   #status { margin-top: 8px; font-size: 12px; min-height: 18px; }
-  #guide { right: 16px; top: 16px; font-size: 12px; color: var(--ui-muted); max-width: min(320px, calc(100vw - 32px)); }
+  #guide { right: 16px; top: 16px; font-size: 12px; color: var(--ui-muted); max-width: min(330px, calc(100vw - 32px)); }
+  #guide div { margin: 3px 0; }
   #styles {
     left: 50%; bottom: 18px; transform: translateX(-50%);
     display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; justify-content: center;
@@ -53,7 +54,6 @@
   .style-btn[data-style="lava"].active { box-shadow: 0 0 18px rgba(255, 110, 30, 0.55); }
   .style-btn[data-style="classic"].active { box-shadow: 0 0 18px rgba(140, 210, 255, 0.55); }
   .style-btn[data-style="shuriken"].active { box-shadow: 0 0 18px rgba(170, 240, 255, 0.6); }
-  #guide div { margin: 3px 0; }
 </style>
 </head>
 <body>
@@ -63,7 +63,7 @@
 
   <div id="hud" class="panel">
     <div class="title">Rasengan Remake</div>
-    <div class="sub">A Rasengan made of live particles. It sits above your palm and follows your hand. No effect videos, every spark is generated as you move.</div>
+    <div class="sub">A Rasengan that appears above your palm. Each style has its own surface, drawn in code from the anime: molten rock, seal swirls, wind streaks.</div>
     <div id="status">Starting camera...</div>
   </div>
 
@@ -73,7 +73,7 @@
     <div>2. Move your hand. The Rasengan follows you.</div>
     <div>3. Make a fist to charge it. Open your hand to release it.</div>
     <div>4. Press 1, 2, 3, 4 or tap a button to change the style.</div>
-    <div>5. Take your hand away. The Rasengan stays where you left it.</div>
+    <div>5. Take your hand away. The Rasengan fades out.</div>
   </div>
 
   <div id="styles" class="panel">
@@ -94,51 +94,206 @@
   var statusEl = document.getElementById("status");
   function setStatus(t) { statusEl.textContent = t; }
 
+  // ============================================================
+  // Surfaces, drawn in code from the reference images.
+  // Each style gets a 1024x512 canvas texture wrapped on a sphere.
+  // Lava: mottled molten blobs, bright hot spots, dark crust.
+  // Magnet: deep blue with dark tomoe seal clusters swirled on it.
+  // Classic and Shuriken: pale blue with white wind streaks.
+  // ============================================================
+  function makeCanvas(w, h) {
+    var c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    return c;
+  }
+
+  // Soft edged blob, drawn three times across the width so the
+  // texture wraps around the sphere with no seam.
+  function blob(ctx, W, x, y, r, color, alpha) {
+    for (var k = -1; k <= 1; k++) {
+      var gx = x + k * W;
+      var g = ctx.createRadialGradient(gx, y, 0, gx, y, r);
+      g.addColorStop(0, color);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = g;
+      ctx.fillRect(gx - r, y - r, r * 2, r * 2);
+      ctx.restore();
+    }
+  }
+
+  function grain(ctx, W, H, n, color, alpha, maxR) {
+    ctx.fillStyle = color;
+    for (var i = 0; i < n; i++) {
+      ctx.save();
+      ctx.globalAlpha = Math.random() * alpha;
+      ctx.beginPath();
+      ctx.arc(Math.random() * W, Math.random() * H, Math.random() * maxR + 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function lavaTexture() {
+    var W = 1024, H = 512, c = makeCanvas(W, H), ctx = c.getContext("2d");
+    ctx.fillStyle = "#8a2000";
+    ctx.fillRect(0, 0, W, H);
+    var i, x, y;
+    // Deep flow tones
+    for (i = 0; i < 90; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 60 + Math.random() * 130, "#c33d00", 0.35);
+    for (i = 0; i < 80; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 40 + Math.random() * 90, "#ff7b00", 0.4);
+    // Bright molten patches
+    for (i = 0; i < 130; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 16 + Math.random() * 44, "#ffa63f", 0.55);
+    // White hot spots, the brightest points in the reference
+    for (i = 0; i < 110; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 6 + Math.random() * 20, "#fff3c4", 0.75);
+    for (i = 0; i < 40; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 3 + Math.random() * 8, "#ffffff", 0.85);
+    // Dark crust, cooling rock between the flows
+    for (i = 0; i < 120; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 10 + Math.random() * 34, "#380d02", 0.4);
+    // Crust cracks: short dark strokes
+    ctx.strokeStyle = "#2a0800";
+    ctx.lineCap = "round";
+    for (i = 0; i < 60; i++) {
+      x = Math.random() * W; y = Math.random() * H;
+      ctx.save();
+      ctx.globalAlpha = 0.35 + Math.random() * 0.3;
+      ctx.lineWidth = 1.5 + Math.random() * 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + (Math.random() - 0.5) * 40, y + (Math.random() - 0.5) * 40,
+                           x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 70);
+      ctx.stroke();
+      ctx.restore();
+    }
+    grain(ctx, W, H, 500, "#ffd23f", 0.25, 2);
+    return new THREE.CanvasTexture(c);
+  }
+
+  // One tomoe (magatama swirl): a round head with a curved tail.
+  function tomoe(ctx, x, y, r, rot, color, alpha) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    // Tail sweeping out of the head
+    ctx.beginPath();
+    ctx.moveTo(r * 0.2, -r * 0.9);
+    ctx.bezierCurveTo(r * 1.7, -r * 0.7, r * 1.9, r * 0.6, r * 0.9, r * 1.15);
+    ctx.bezierCurveTo(r * 0.45, r * 0.55, r * 0.1, r * 0.3, -r * 0.35, r * 0.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function magnetTexture() {
+    var W = 1024, H = 512, c = makeCanvas(W, H), ctx = c.getContext("2d");
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#3a78ff");
+    grad.addColorStop(0.5, "#2f6bff");
+    grad.addColorStop(1, "#1a44b8");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    var i;
+    // Light bloom patches so the blue is not flat
+    for (i = 0; i < 50; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 40 + Math.random() * 90, "#8fb8ff", 0.28);
+    for (i = 0; i < 26; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 20 + Math.random() * 50, "#dceaff", 0.3);
+    // Tomoe seal clusters, the dark swirls that cover the reference
+    for (i = 0; i < 64; i++) {
+      var cx = Math.random() * W, cy = Math.random() * H;
+      var n = 2 + Math.floor(Math.random() * 3);
+      for (var j = 0; j < n; j++) {
+        var tx = cx + (Math.random() - 0.5) * 90;
+        var ty = cy + (Math.random() - 0.5) * 60;
+        var tr = 9 + Math.random() * 15;
+        // wrap draw for the seam
+        for (var k = -1; k <= 1; k++) {
+          tomoe(ctx, tx + k * W, ty, tr, Math.random() * Math.PI * 2, "#060d2e", 0.88);
+        }
+      }
+    }
+    // A few lone large seals, like the big ones in the reference
+    for (i = 0; i < 14; i++) {
+      var lx = Math.random() * W, ly = Math.random() * H;
+      for (var k2 = -1; k2 <= 1; k2++) {
+        tomoe(ctx, lx + k2 * W, ly, 20 + Math.random() * 12, Math.random() * Math.PI * 2, "#050a26", 0.9);
+      }
+    }
+    grain(ctx, W, H, 350, "#bcd6ff", 0.3, 1.8);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function windTexture(hot) {
+    var W = 1024, H = 512, c = makeCanvas(W, H), ctx = c.getContext("2d");
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, hot ? "#cfeeff" : "#9fd4ff");
+    grad.addColorStop(0.5, hot ? "#7cc9ff" : "#54a9f5");
+    grad.addColorStop(1, hot ? "#3f9bf0" : "#1c6fd6");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+    var i;
+    // Swirling wind streaks: long wavy strokes flowing sideways
+    for (i = 0; i < 110; i++) {
+      var y = Math.random() * H;
+      var x = Math.random() * W - 200;
+      var len = 140 + Math.random() * 320;
+      var wob = (Math.random() - 0.5) * 46;
+      ctx.save();
+      ctx.strokeStyle = "#ffffff";
+      ctx.globalAlpha = 0.10 + Math.random() * 0.22;
+      ctx.lineWidth = 2 + Math.random() * 7;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + len / 2, y + wob, x + len, y + wob * 0.3);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Bright churn near the middle band
+    for (i = 0; i < 60; i++) blob(ctx, W, Math.random() * W, H * 0.3 + Math.random() * H * 0.4, 14 + Math.random() * 40, "#ffffff", hot ? 0.4 : 0.3);
+    grain(ctx, W, H, 400, "#ffffff", 0.3, 1.8);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function discTexture() {
+    var c = makeCanvas(256, 256), ctx = c.getContext("2d");
+    var g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+    g.addColorStop(0, "rgba(255,255,255,0.9)");
+    g.addColorStop(0.55, "rgba(190,235,255,0.35)");
+    g.addColorStop(1, "rgba(190,235,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+    return new THREE.CanvasTexture(c);
+  }
+
   // ---------- Style definitions ----------
-  // Every colour and behaviour difference between the three Rasengan
-  // variants lives here. The engine below is style agnostic.
   var STYLES = {
     classic: {
-      label: "Classic Rasengan",
-      core: 0xbfe6ff, coreInner: 0xffffff, glow: 0x4db2ff,
-      shell: [0xeaf7ff, 0x9fd4ff, 0x3f9bf0, 0x1c6fd6],
-      shellWeights: [0.30, 0.34, 0.24, 0.12],
-      swirl: 0x7cc4ff,
-      spin: 2.6, flicker: 0.05, emberCount: 0, sealCount: 0, orbs: 0,
-      blades: 0, smoke: 0, shellScale: 1
+      label: "Classic Rasengan", tex: "wind",
+      glow: 0x4db2ff, spin: 1.1, flicker: 0.03,
+      spark: [0xeaf7ff, 0x9fd4ff, 0x3f9bf0], sparkW: [0.4, 0.36, 0.24],
+      swirlColor: 0x7cc4ff, embers: 0, orbs: 0, blades: 0, smoke: 0, shellScale: 1
     },
     magnet: {
-      label: "Magnet Release Rasengan",
-      core: 0x9fc2ff, coreInner: 0xeaf2ff, glow: 0x2f6bff,
-      // Bright blue chakra threaded with near black seal marks, the
-      // tomoe swirls from the Magnet Release Rasengan.
-      shell: [0xdceaff, 0x6fa8ff, 0x2f6bff, 0x0a1030],
-      shellWeights: [0.26, 0.32, 0.24, 0.18],
-      swirl: 0x4d8dff,
-      spin: 3.1, flicker: 0.04, emberCount: 0, sealCount: 260, orbs: 5,
-      blades: 0, smoke: 0, shellScale: 1
+      label: "Magnet Release Rasengan", tex: "magnet",
+      glow: 0x2f6bff, spin: 1.3, flicker: 0.03,
+      spark: [0xdceaff, 0x6fa8ff, 0x2f6bff], sparkW: [0.38, 0.36, 0.26],
+      swirlColor: 0x4d8dff, embers: 0, orbs: 5, blades: 0, smoke: 0, shellScale: 1
     },
     lava: {
-      label: "Lava Release Rasengan",
-      core: 0xffc93f, coreInner: 0xfff3c4, glow: 0xff6a00,
-      // Molten surface: bright yellow white heat, orange flow, deep red
-      // crust and dark rock flecks, with embers thrown off the surface.
-      shell: [0xfff3c4, 0xffc93f, 0xff7b00, 0xd63c00, 0x38100a],
-      shellWeights: [0.16, 0.30, 0.28, 0.16, 0.10],
-      swirl: 0xff8c2e,
-      spin: 2.2, flicker: 0.16, emberCount: 420, sealCount: 0, orbs: 0,
-      blades: 0, smoke: 0.15, shellScale: 1
+      label: "Lava Release Rasengan", tex: "lava",
+      glow: 0xff6a00, spin: 0.8, flicker: 0.10,
+      spark: [0xfff3c4, 0xffc93f, 0xff7b00], sparkW: [0.3, 0.38, 0.32],
+      swirlColor: 0xff8c2e, embers: 420, orbs: 0, blades: 0, smoke: 0.16, shellScale: 1
     },
     shuriken: {
-      label: "Rasenshuriken",
-      core: 0xd8f6ff, coreInner: 0xffffff, glow: 0x8fe3ff,
-      // Wind Release Rasenshuriken: a white hot core and pale blades.
-      // The shell pulls in tight so the four blades own the silhouette.
-      shell: [0xffffff, 0xdff4ff, 0x9fe0ff, 0x54b9ff],
-      shellWeights: [0.34, 0.30, 0.22, 0.14],
-      swirl: 0x9fe8ff,
-      spin: 3.4, flicker: 0.05, emberCount: 0, sealCount: 0, orbs: 0,
-      blades: 1, smoke: 0, shellScale: 0.8
+      label: "Rasenshuriken", tex: "windHot",
+      glow: 0x8fe3ff, spin: 1.5, flicker: 0.04,
+      spark: [0xffffff, 0xdff4ff, 0x9fe0ff], sparkW: [0.4, 0.34, 0.26],
+      swirlColor: 0x9fe8ff, embers: 0, orbs: 0, blades: 1, smoke: 0, shellScale: 0.82
     }
   };
 
@@ -176,9 +331,8 @@
     return { x: (nx - 0.5) * viewW, y: (0.5 - ny) * viewH };
   }
 
-  // Soft round sprite texture for glow and particles.
   function makeGlowTexture() {
-    var c = document.createElement("canvas"); c.width = c.height = 128;
+    var c = makeCanvas(128, 128);
     var g = c.getContext("2d");
     var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
     grad.addColorStop(0, "rgba(255,255,255,1)");
@@ -189,65 +343,69 @@
   }
   var glowTex = makeGlowTexture();
 
+  var textures = {
+    wind: windTexture(false),
+    windHot: windTexture(true),
+    magnet: magnetTexture(),
+    lava: lavaTexture()
+  };
+
   var group = new THREE.Group();
+  group.visible = false;
   scene.add(group);
 
-  // Core: two nested spheres plus a glow sprite.
-  var coreInner = new THREE.Mesh(
-    new THREE.SphereGeometry(0.52, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 })
-  );
-  var coreOuter = new THREE.Mesh(
-    new THREE.SphereGeometry(0.78, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.34, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  var glow = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: glowTex, color: 0x4db2ff, transparent: true, opacity: 0.85,
-    blending: THREE.AdditiveBlending, depthWrite: false
-  }));
-  glow.scale.set(3.4, 3.4, 1);
-  // Pale smoke cloud (Lava style), the steam rolling off the molten
-  // sphere in the reference image. Normal blending, very low opacity.
+  // Smoke (Lava), behind everything: a pale cloud rolling off the ball.
   var smoke = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0xe9e5da, transparent: true, opacity: 0, depthWrite: false
   }));
-  smoke.scale.set(5.6, 5.6, 1);
+  smoke.scale.set(5.8, 5.2, 1);
   group.add(smoke);
-  group.add(glow); group.add(coreOuter); group.add(coreInner);
 
-  // Shell particles on a sphere, stored in spherical coordinates so the
-  // whole shell can churn: fast at the equator, slower at the poles.
-  var SHELL_N = 9000;
+  // Glow halo behind the ball.
+  var glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: 0x4db2ff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  glow.scale.set(3.3, 3.3, 1);
+  group.add(glow);
+
+  // The ball itself: a real sphere wearing the drawn surface.
+  var sphereMat = new THREE.MeshBasicMaterial({ map: textures.wind, transparent: true, opacity: 0 });
+  var sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), sphereMat);
+  group.add(sphere);
+
+  // Outer sparks: a thin shell of bright particles just above the
+  // surface. Bright only, additive is right for these.
+  var SHELL_N = 3400;
   var shellGeo = new THREE.BufferGeometry();
   var shellPos = new Float32Array(SHELL_N * 3);
   var shellCol = new Float32Array(SHELL_N * 3);
   var shellTargetCol = new Float32Array(SHELL_N * 3);
-  var shellTheta = new Float32Array(SHELL_N);   // around Y axis
-  var shellPhi = new Float32Array(SHELL_N);     // from +Y pole
-  var shellRad = new Float32Array(SHELL_N);     // 0.9 .. 1.05 of radius
+  var shellTheta = new Float32Array(SHELL_N);
+  var shellPhi = new Float32Array(SHELL_N);
+  var shellRad = new Float32Array(SHELL_N);
   var shellSeed = new Float32Array(SHELL_N);
   (function initShell() {
     var golden = Math.PI * (3 - Math.sqrt(5));
     for (var i = 0; i < SHELL_N; i++) {
       var y = 1 - (i / (SHELL_N - 1)) * 2;
-      var phi = Math.acos(Math.max(-1, Math.min(1, y)));
-      shellPhi[i] = phi;
+      shellPhi[i] = Math.acos(Math.max(-1, Math.min(1, y)));
       shellTheta[i] = golden * i;
-      shellRad[i] = 0.90 + Math.random() * 0.15;
+      shellRad[i] = 1.03 + Math.random() * 0.22;
       shellSeed[i] = Math.random();
     }
   })();
   shellGeo.setAttribute("position", new THREE.BufferAttribute(shellPos, 3));
   shellGeo.setAttribute("color", new THREE.BufferAttribute(shellCol, 3));
-  var shell = new THREE.Points(shellGeo, new THREE.PointsMaterial({
-    size: 4.7, map: glowTex, vertexColors: true, transparent: true, opacity: 0.95,
+  var shellMat = new THREE.PointsMaterial({
+    size: 4.4, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  }));
+  });
+  var shell = new THREE.Points(shellGeo, shellMat);
   group.add(shell);
 
-  // Swirl disc: a flattened ring of streaks around the sphere, reads as
-  // rotational blur when it spins.
-  var SWIRL_N = 700;
+  // Swirl disc of streaks around the ball (hidden in Shuriken style).
+  var SWIRL_N = 650;
   var swirlGeo = new THREE.BufferGeometry();
   var swirlPos = new Float32Array(SWIRL_N * 3);
   var swirlAng = new Float32Array(SWIRL_N);
@@ -256,37 +414,35 @@
   (function initSwirl() {
     for (var i = 0; i < SWIRL_N; i++) {
       swirlAng[i] = Math.random() * Math.PI * 2;
-      swirlRad[i] = 1.05 + Math.random() * 0.55;
+      swirlRad[i] = 1.1 + Math.random() * 0.55;
       swirlY[i] = (Math.random() - 0.5) * 0.22;
     }
   })();
   swirlGeo.setAttribute("position", new THREE.BufferAttribute(swirlPos, 3));
-  var swirl = new THREE.Points(swirlGeo, new THREE.PointsMaterial({
-    size: 7, map: glowTex, color: 0x7cc4ff, transparent: true, opacity: 0.5,
+  var swirlMat = new THREE.PointsMaterial({
+    size: 7, map: glowTex, color: 0x7cc4ff, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  }));
+  });
+  var swirl = new THREE.Points(swirlGeo, swirlMat);
   group.add(swirl);
 
-  // Rasenshuriken blades: four curved blades of particles in the plane
-  // facing the camera, plus a thin disc ring at their root. Positions
-  // are fixed in local space; the whole group spins around Z.
-  var BLADE_N = 3000;
+  // Rasenshuriken blades: four curved particle blades in the plane
+  // facing the camera, a soft disc behind them, all spinning on Z.
+  var BLADE_N = 3600;
   var bladeGeo = new THREE.BufferGeometry();
   var bladePos = new Float32Array(BLADE_N * 3);
   (function initBlades() {
     for (var i = 0; i < BLADE_N; i++) {
       var x, y;
-      if (i < 500) {
-        // Disc ring at the root of the blades.
+      if (i < 600) {
         var ra = Math.random() * Math.PI * 2;
         var rr = 0.95 + Math.random() * 0.3;
         x = Math.cos(ra) * rr; y = Math.sin(ra) * rr;
       } else {
         var blade = i % 4;
         var t = Math.pow(Math.random(), 0.8);
-        var base = blade * Math.PI / 2;
-        var ang = base + t * 1.05;                    // sweep back
-        var rad = 0.62 + t * 1.85;                    // out to the tip
+        var ang = blade * Math.PI / 2 + t * 1.05;
+        var rad = 0.62 + t * 1.85;
         var off = (Math.random() - 0.5) * 0.36 * (1 - t * 0.45);
         x = Math.cos(ang) * rad - Math.sin(ang) * off;
         y = Math.sin(ang) * rad + Math.cos(ang) * off;
@@ -297,27 +453,32 @@
     }
   })();
   bladeGeo.setAttribute("position", new THREE.BufferAttribute(bladePos, 3));
-  var bladeGroup = new THREE.Group();
-  var blades = new THREE.Points(bladeGeo, new THREE.PointsMaterial({
-    size: 6.4, map: glowTex, color: 0xcdf2ff, transparent: true, opacity: 0,
+  var bladeMat = new THREE.PointsMaterial({
+    size: 7, map: glowTex, color: 0xeafcff, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  }));
-  bladeGroup.add(blades);
+  });
+  var bladeGroup = new THREE.Group();
+  var bladeDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(2.5, 40),
+    new THREE.MeshBasicMaterial({ map: discTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+  );
+  bladeGroup.add(bladeDisc);
+  bladeGroup.add(new THREE.Points(bladeGeo, bladeMat));
   bladeGroup.visible = false;
   group.add(bladeGroup);
 
-  // Embers (Lava style): particles thrown off the surface that rise,
-  // flicker and fall back. Allocated at max count, drawn per style.
+  // Embers (Lava): sparks thrown off the surface that arc and fall.
   var EMBER_MAX = 420;
   var emberGeo = new THREE.BufferGeometry();
   var emberPos = new Float32Array(EMBER_MAX * 3);
   var emberVel = new Float32Array(EMBER_MAX * 3);
   var emberLife = new Float32Array(EMBER_MAX);
   emberGeo.setAttribute("position", new THREE.BufferAttribute(emberPos, 3));
-  var embers = new THREE.Points(emberGeo, new THREE.PointsMaterial({
-    size: 6, map: glowTex, color: 0xffa63f, transparent: true, opacity: 0.9,
+  var emberMat = new THREE.PointsMaterial({
+    size: 6, map: glowTex, color: 0xffa63f, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  }));
+  });
+  var embers = new THREE.Points(emberGeo, emberMat);
   embers.visible = false;
   group.add(embers);
 
@@ -334,20 +495,17 @@
     emberLife[i] = 0.7 + Math.random() * 0.9;
   }
 
-  // Orbiting black orbs (Magnet style), like the orbs around Naruto in
-  // Six Paths mode. Small dark spheres with a faint rim glow sprite.
+  // Orbiting black orbs (Magnet), small and close, with a blue rim.
   var orbGroup = new THREE.Group();
   var orbMeshes = [];
   for (var oi = 0; oi < 5; oi++) {
-    var orb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.09, 20, 20),
-      new THREE.MeshBasicMaterial({ color: 0x05070f })
-    );
+    var orbMat = new THREE.MeshBasicMaterial({ color: 0x0a0d18, transparent: true, opacity: 0 });
+    var orb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 20), orbMat);
     var rim = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: 0x2f6bff, transparent: true, opacity: 0.35,
+      map: glowTex, color: 0x2f6bff, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    rim.scale.set(0.34, 0.34, 1);
+    rim.scale.set(0.3, 0.3, 1);
     orb.add(rim);
     orbGroup.add(orb);
     orbMeshes.push(orb);
@@ -355,48 +513,41 @@
   orbGroup.visible = false;
   group.add(orbGroup);
 
-  // ---------- Style state and transitions ----------
+  // ---------- Style state ----------
   var currentStyle = "classic";
-  var colorBlend = 1; // 1 = fully on current style colours
+  var colorBlend = 1;
+  var bladeLevel = 0;
+  var smokeLevel = 0;
 
-  function applyStyleColors(name) {
+  function applyStyle(name) {
     var st = STYLES[name];
+    sphereMat.map = textures[st.tex];
+    sphereMat.needsUpdate = true;
+    glow.material.color.setHex(st.glow);
+    swirlMat.color.setHex(st.swirlColor);
     var col = new THREE.Color();
     for (var i = 0; i < SHELL_N; i++) {
-      col.setHex(pickWeighted(st.shell, st.shellWeights, shellSeed[i]));
-      // Seal marks for Magnet: dark patches swirled through the blue,
-      // placed by a wave over the shell so they read as the tomoe seal
-      // clusters in the reference image, not random noise.
-      if (name === "magnet") {
-        var patch = Math.sin(shellPhi[i] * 3.0 + shellSeed[i] * 6.28) *
-                    Math.cos(shellTheta[i] * 2.0 + shellSeed[i] * 3.0);
-        if (patch > 0.42) col.setHex(0x0a1030);
-      }
+      col.setHex(pickWeighted(st.spark, st.sparkW, shellSeed[i]));
       shellTargetCol[i * 3] = col.r; shellTargetCol[i * 3 + 1] = col.g; shellTargetCol[i * 3 + 2] = col.b;
       if (colorBlend >= 1) {
         shellCol[i * 3] = col.r; shellCol[i * 3 + 1] = col.g; shellCol[i * 3 + 2] = col.b;
       }
     }
     shellGeo.attributes.color.needsUpdate = true;
-    coreOuter.material.color.setHex(st.core);
-    coreInner.material.color.setHex(st.coreInner);
-    glow.material.color.setHex(st.glow);
-    swirl.material.color.setHex(st.swirl);
-    embers.visible = st.emberCount > 0;
+    embers.visible = st.embers > 0;
+    if (embers.visible) for (var e = 0; e < EMBER_MAX; e++) respawnEmber(e, 1.05);
     orbGroup.visible = st.orbs > 0;
-    if (embers.visible) {
-      for (var e = 0; e < EMBER_MAX; e++) respawnEmber(e, 1);
-    }
   }
 
   var buttons = Array.prototype.slice.call(document.querySelectorAll(".style-btn"));
   function setStyle(name) {
-    if (!STYLES[name] || name === currentStyle && colorBlend >= 1) return;
+    if (!STYLES[name]) return;
+    if (name === currentStyle && colorBlend >= 1) return;
     currentStyle = name;
     colorBlend = 0;
-    applyStyleColors(name);
+    applyStyle(name);
     buttons.forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-style") === name); });
-    setStatus(STYLES[name].label + ". Open hand to hold it, fist to charge.");
+    setStatus(STYLES[name].label + ". Fist to charge, open hand to release.");
   }
   buttons.forEach(function (b) {
     b.addEventListener("click", function () { setStyle(b.getAttribute("data-style")); });
@@ -407,16 +558,11 @@
     else if (ev.key === "3") setStyle("lava");
     else if (ev.key === "4") setStyle("shuriken");
   });
-  applyStyleColors("classic");
+  applyStyle("classic");
 
   // ---------- Hand tracking ----------
-  var target = { x: 0, y: 0, radius: 90, has: false, fist: false };
+  var target = { x: 0, y: 0, radius: 84, has: false, fist: false };
   var lastHandAt = 0;
-  var everHadHand = false;
-  var mouse = { x: 0.5, y: 0.42 };
-  window.addEventListener("mousemove", function (ev) {
-    mouse.x = ev.clientX / viewW; mouse.y = ev.clientY / viewH;
-  });
 
   function dist(a, b) {
     var dx = a.x - b.x, dy = a.y - b.y;
@@ -427,22 +573,18 @@
     var lm = results.multiHandLandmarks && results.multiHandLandmarks[0];
     if (!lm) { target.has = false; return; }
     target.has = true;
-    everHadHand = true;
     lastHandAt = performance.now();
 
-    // Palm centre from wrist and the two outer knuckles.
     var cx = (lm[0].x + lm[5].x + lm[17].x) / 3;
     var cy = (lm[0].y + lm[5].y + lm[17].y) / 3;
-    // Float the sphere above the palm, toward the middle finger knuckle.
     cx += (lm[9].x - lm[0].x) * 0.35;
     cy += (lm[9].y - lm[0].y) * 0.35;
 
     var palmW = dist(lm[5], lm[17]);
     var w = screenToWorld(1 - cx, cy); // video is mirrored
     target.x = w.x; target.y = w.y;
-    target.radius = Math.max(46, Math.min(190, palmW * viewW * 1.55));
+    target.radius = Math.max(40, Math.min(150, palmW * viewW * 1.15));
 
-    // Fist: fingertips pulled in close to the wrist relative to palm size.
     var tips = [8, 12, 16, 20];
     var sum = 0;
     for (var i = 0; i < tips.length; i++) sum += dist(lm[tips[i]], lm[0]);
@@ -470,21 +612,22 @@
       cameraStarted = true;
       setStatus("Camera on. Show your open palm.");
     }).catch(function () {
-      setStatus("Camera unavailable. Demo mode: the sphere follows your mouse.");
+      setStatus("Camera unavailable. This page needs a camera to show the Rasengan.");
     });
   } catch (err) {
-    setStatus("Hand tracking unavailable. Demo mode: the sphere follows your mouse.");
+    setStatus("Hand tracking unavailable. This page needs a camera to show the Rasengan.");
   }
   setTimeout(function () {
-    if (!cameraStarted) setStatus("Demo mode: the sphere follows your mouse. Allow the camera for hand control.");
+    if (!cameraStarted) setStatus("Show your open palm to the camera.");
   }, 6000);
 
   // ---------- Animation ----------
-  var pos = { x: 0, y: viewH * 0.05, radius: 95 };
+  var pos = { x: 0, y: 0, radius: 84 };
   var spinAngle = 0;
-  var charge = 0; // 0 calm .. 1 fully charged (fist)
+  var charge = 0;
   var wasFist = false;
-  var pulseT = -1; // release pulse timer, -1 = idle
+  var pulseT = -1;
+  var presence = 0; // 0 hidden .. 1 fully shown, follows the palm
   var handLive = false;
   var lastT = performance.now();
 
@@ -495,42 +638,30 @@
     lastT = now;
     var st = STYLES[currentStyle];
 
-    // Where should the sphere be? While the hand is live it follows the
-    // palm. Once a hand has held it, losing the hand leaves the sphere
-    // floating at its last spot: it never disappears. The mouse demo
-    // only runs before the first hand appears.
-    var live = target.has && now - lastHandAt < 1600;
+    // Like the original: the effect exists only while a palm is on
+    // screen. It fades in above the palm and fades out where it was.
+    var live = target.has && now - lastHandAt < 1200;
     if (live !== handLive) {
       handLive = live;
-      if (!live && everHadHand) {
-        setStatus("Your hand is gone. The Rasengan stays here. Show your palm to pick it up again.");
-      } else if (live) {
-        setStatus(STYLES[currentStyle].label + ". Fist to charge, open hand to release.");
-      }
+      if (live) setStatus(st.label + ". Fist to charge, open hand to release.");
+      else setStatus("No palm. The Rasengan is gone. Show your open palm to bring it back.");
     }
-    var want;
-    if (live) {
-      want = { x: target.x, y: target.y, radius: target.radius };
-    } else if (everHadHand) {
-      want = { x: pos.x, y: pos.y, radius: pos.radius };
-    } else {
-      var mw = screenToWorld(mouse.x, mouse.y);
-      want = { x: mw.x, y: mw.y, radius: 95 };
-    }
-    var k = 1 - Math.pow(0.0001, dt); // smooth follow
-    pos.x += (want.x - pos.x) * k;
-    pos.y += (want.y - pos.y) * k;
-    pos.radius += (want.radius - pos.radius) * k;
+    presence += ((live ? 1 : 0) - presence) * Math.min(1, dt * (live ? 7 : 5));
+    if (presence < 0.02 && !live) { group.visible = false; renderer.render(scene, camera); return; }
+    group.visible = true;
 
-    // Charge from a fist.
-    var chargeTarget = (target.has && target.fist) ? 1 : 0;
+    if (live) {
+      var k = 1 - Math.pow(0.0001, dt);
+      pos.x += (target.x - pos.x) * k;
+      pos.y += (target.y - pos.y) * k;
+      pos.radius += (target.radius - pos.radius) * k;
+    }
+
+    var chargeTarget = (live && target.fist) ? 1 : 0;
     charge += (chargeTarget - charge) * Math.min(1, dt * 5);
 
-    // Release: a charged fist opening throws the energy out. In
-    // Shuriken style the whole thing flares wide, like the throw at
-    // the end of the reference video.
-    if (wasFist && target.has && !target.fist && charge > 0.45 && pulseT < 0) pulseT = 0;
-    wasFist = target.has && target.fist;
+    if (wasFist && live && !target.fist && charge > 0.45 && pulseT < 0) pulseT = 0;
+    wasFist = live && target.fist;
     var pulseScale = 1;
     if (pulseT >= 0) {
       pulseT += dt;
@@ -539,13 +670,24 @@
       else pulseScale = 1 + Math.sin(pt * Math.PI) * (currentStyle === "shuriken" ? 1.9 : 0.55);
     }
 
-    var R = pos.radius * (1 - charge * 0.30);
+    var R = pos.radius * (1 - charge * 0.24) * (0.72 + 0.28 * presence);
     var flick = 1 + (Math.random() - 0.5) * st.flicker * (1 + charge);
-    group.position.set(pos.x, pos.y + Math.sin(now * 0.0016) * 4, 0);
+    group.position.set(pos.x, pos.y + Math.sin(now * 0.0016) * 3.5, 0);
     group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
 
-    // Spin: faster at the equator, faster again while charging.
-    spinAngle += dt * st.spin * (1 + charge * 1.6);
+    // Fade every layer with presence.
+    sphereMat.opacity = presence;
+    glow.material.opacity = (0.5 + charge * 0.3 + (pulseT >= 0 ? 0.25 : 0)) * presence;
+    shellMat.opacity = 0.9 * presence;
+    swirlMat.opacity = (st.blades ? 0.05 : 0.32 + charge * 0.25) * presence;
+    emberMat.opacity = 0.9 * presence;
+
+    // The surface itself turns, faster while charged.
+    sphere.rotation.y += dt * st.spin * (1 + charge * 1.7);
+    sphere.rotation.x = Math.sin(now * 0.0004) * 0.14;
+
+    // Sparks churn over the surface.
+    spinAngle += dt * 2.4 * (1 + charge * 1.4);
     for (var i = 0; i < SHELL_N; i++) {
       var phi = shellPhi[i];
       var latSpeed = 0.45 + Math.sin(phi) * 0.9;
@@ -557,7 +699,6 @@
     }
     shellGeo.attributes.position.needsUpdate = true;
 
-    // Colour transitions between styles.
     if (colorBlend < 1) {
       colorBlend = Math.min(1, colorBlend + dt * 2.2);
       for (var j = 0; j < SHELL_N * 3; j++) {
@@ -566,7 +707,12 @@
       shellGeo.attributes.color.needsUpdate = true;
     }
 
-    // Swirl disc spins hard, tilts a little with charge.
+    var shTarget = st.shellScale || 1;
+    var shNow = shell.scale.x + (shTarget - shell.scale.x) * Math.min(1, dt * 5);
+    shell.scale.set(shNow, shNow, shNow);
+    sphere.scale.set(shNow, shNow, shNow);
+
+    // Swirl disc.
     for (var s = 0; s < SWIRL_N; s++) {
       var a = swirlAng[s] + spinAngle * 1.9;
       swirlPos[s * 3] = Math.cos(a) * swirlRad[s];
@@ -574,60 +720,48 @@
       swirlPos[s * 3 + 2] = Math.sin(a) * swirlRad[s];
     }
     swirlGeo.attributes.position.needsUpdate = true;
-    swirl.material.opacity = st.blades ? 0.06 : 0.35 + charge * 0.3;
 
-    // Rasenshuriken blades fade in for that style and spin hard,
-    // faster while charged and faster again during the release flare.
-    var bladeTarget = st.blades ? 0.9 : 0;
-    blades.material.opacity += (bladeTarget - blades.material.opacity) * Math.min(1, dt * 6);
-    bladeGroup.visible = blades.material.opacity > 0.02;
+    // Blades.
+    bladeLevel += ((st.blades ? 1 : 0) - bladeLevel) * Math.min(1, dt * 6);
+    bladeGroup.visible = bladeLevel > 0.02;
     if (bladeGroup.visible) {
+      bladeMat.opacity = 0.9 * bladeLevel * presence;
+      bladeDisc.material.opacity = 0.16 * bladeLevel * presence;
       bladeGroup.rotation.z -= dt * (7 + charge * 8) * (pulseT >= 0 ? 1.6 : 1);
     }
 
-    // Smoke (Lava) drifts to its style level and breathes slowly.
-    smoke.material.opacity += ((st.smoke || 0) - smoke.material.opacity) * Math.min(1, dt * 3);
-    var ss = 5.6 + Math.sin(now * 0.0011) * 0.35;
-    smoke.scale.set(ss, ss, 1);
+    // Smoke.
+    smokeLevel += ((st.smoke || 0) - smokeLevel) * Math.min(1, dt * 3);
+    smoke.material.opacity = smokeLevel * presence;
+    var ss = 5.8 + Math.sin(now * 0.0011) * 0.35;
+    smoke.scale.set(ss, ss * 0.9, 1);
+    smoke.position.x = Math.sin(now * 0.0006) * 0.18;
 
-    // The shell pulls in tight in Shuriken style so the blades own
-    // the silhouette.
-    var shTarget = st.shellScale || 1;
-    var shNow = shell.scale.x + (shTarget - shell.scale.x) * Math.min(1, dt * 5);
-    shell.scale.set(shNow, shNow, shNow);
-
-    // Core and glow pulse.
-    var pulse = 1 + Math.sin(now * 0.006) * 0.03 + charge * 0.12;
-    coreInner.scale.set(pulse, pulse, pulse);
-    coreOuter.scale.set(pulse * (1 + charge * 0.1), pulse * (1 + charge * 0.1), pulse * (1 + charge * 0.1));
-    glow.material.opacity = Math.min(1, 0.65 + charge * 0.35 + (pulseT >= 0 ? 0.3 : 0));
-    var gs = 3.4 + charge * 0.9 + Math.sin(now * 0.004) * 0.12;
-    glow.scale.set(gs, gs, 1);
-
-    // Embers (lava).
+    // Embers.
     if (embers.visible) {
       for (var e2 = 0; e2 < EMBER_MAX; e2++) {
         emberLife[e2] -= dt;
-        if (emberLife[e2] <= 0) { respawnEmber(e2, 1); continue; }
+        if (emberLife[e2] <= 0) { respawnEmber(e2, 1.05); continue; }
         emberPos[e2 * 3] += emberVel[e2 * 3] * dt * (0.4 + charge * 0.5);
         emberPos[e2 * 3 + 1] += emberVel[e2 * 3 + 1] * dt * (0.4 + charge * 0.5);
         emberPos[e2 * 3 + 2] += emberVel[e2 * 3 + 2] * dt * (0.4 + charge * 0.5);
-        emberVel[e2 * 3 + 1] -= dt * 0.55; // embers arc and fall back
+        emberVel[e2 * 3 + 1] -= dt * 0.55;
       }
       emberGeo.attributes.position.needsUpdate = true;
     }
 
-    // Orbs (magnet) circle the sphere on a tilted plane.
+    // Orbs.
     if (orbGroup.visible) {
       for (var o = 0; o < orbMeshes.length; o++) {
-        var oa = spinAngle * 0.7 + (o / orbMeshes.length) * Math.PI * 2;
-        orbMeshes[o].position.set(
-          Math.cos(oa) * 1.45,
-          Math.sin(oa * 1.0) * 0.42,
-          Math.sin(oa) * 1.45
-        );
+        var oa = spinAngle * 0.6 + (o / orbMeshes.length) * Math.PI * 2;
+        orbMeshes[o].position.set(Math.cos(oa) * 1.34, Math.sin(oa) * 0.4, Math.sin(oa) * 1.34);
+        orbMeshes[o].material.opacity = presence;
+        orbMeshes[o].children[0].material.opacity = 0.3 * presence;
       }
     }
+
+    var gs = 3.3 + charge * 0.7 + Math.sin(now * 0.004) * 0.1;
+    glow.scale.set(gs, gs, 1);
 
     renderer.render(scene, camera);
   }
