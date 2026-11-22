@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rasengan Remake: Magnet and Lava Styles</title>
+<style>
+  :root {
+    --ui-bg: rgba(0, 0, 0, 0.45);
+    --ui-border: rgba(255, 255, 255, 0.16);
+    --ui-text: #f4f7fb;
+    --ui-muted: rgba(255, 255, 255, 0.72);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; width: 100%; height: 100%; overflow: hidden;
+    background: #000; color: var(--ui-text);
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  #app { position: fixed; inset: 0; overflow: hidden; background: #000; }
+  #camera {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scaleX(-1); background: #000;
+  }
+  #fx {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .panel {
+    position: absolute; z-index: 5; padding: 12px 14px; border-radius: 16px;
+    background: var(--ui-bg); border: 1px solid var(--ui-border);
+    backdrop-filter: blur(10px); line-height: 1.4;
+  }
+  #hud { left: 16px; top: 16px; max-width: min(440px, calc(100vw - 32px)); }
+  #hud .title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  #hud .sub { font-size: 12px; color: var(--ui-muted); }
+  #status { margin-top: 8px; font-size: 12px; min-height: 18px; }
+  #guide { right: 16px; top: 16px; font-size: 12px; color: var(--ui-muted); max-width: min(320px, calc(100vw - 32px)); }
+  #styles {
+    left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: flex; gap: 8px; padding: 10px;
+  }
+  .style-btn {
+    appearance: none; border: 1px solid var(--ui-border); cursor: pointer;
+    background: rgba(255, 255, 255, 0.06); color: var(--ui-text);
+    font-size: 13px; font-weight: 700; letter-spacing: 0.4px;
+    padding: 9px 16px; border-radius: 999px;
+  }
+  .style-btn small { display: block; font-weight: 400; font-size: 11px; color: var(--ui-muted); letter-spacing: 0; }
+  .style-btn.active { border-color: rgba(255, 255, 255, 0.65); background: rgba(255, 255, 255, 0.16); }
+  .style-btn[data-style="magnet"].active { box-shadow: 0 0 18px rgba(70, 130, 255, 0.55); }
+  .style-btn[data-style="lava"].active { box-shadow: 0 0 18px rgba(255, 110, 30, 0.55); }
+  .style-btn[data-style="classic"].active { box-shadow: 0 0 18px rgba(140, 210, 255, 0.55); }
+</style>
+</head>
+<body>
+<div id="app">
+  <video id="camera" autoplay playsinline muted></video>
+  <canvas id="fx"></canvas>
+
+  <div id="hud" class="panel">
+    <div class="title">Rasengan Remake</div>
+    <div class="sub">A real time particle Rasengan that sits in your palm. No effect videos, every spark is generated live. Open your hand to hold it, make a fist to charge it.</div>
+    <div id="status">Starting camera...</div>
+  </div>
+
+  <div id="guide" class="panel">
+    Keys 1, 2, 3 switch style. Fist: charge and compress. Open hand: release. No camera? The sphere idles at centre and follows your mouse.
+  </div>
+
+  <div id="styles" class="panel">
+    <button class="style-btn active" data-style="classic">1 · Classic<small>Wind blue Rasengan</small></button>
+    <button class="style-btn" data-style="magnet">2 · Magnet<small>Jiton, seal swirls</small></button>
+    <button class="style-btn" data-style="lava">3 · Lava<small>Yoton, molten core</small></button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var statusEl = document.getElementById("status");
+  function setStatus(t) { statusEl.textContent = t; }
+
+  // ---------- Style definitions ----------
+  // Every colour and behaviour difference between the three Rasengan
+  // variants lives here. The engine below is style agnostic.
+  var STYLES = {
+    classic: {
+      label: "Classic Rasengan",
+      core: 0xbfe6ff, coreInner: 0xffffff, glow: 0x4db2ff,
+      shell: [0xeaf7ff, 0x9fd4ff, 0x3f9bf0, 0x1c6fd6],
+      shellWeights: [0.30, 0.34, 0.24, 0.12],
+      swirl: 0x7cc4ff,
+      spin: 2.6, flicker: 0.05, emberCount: 0, sealCount: 0, orbs: 0
+    },
+    magnet: {
+      label: "Magnet Release Rasengan",
+      core: 0x9fc2ff, coreInner: 0xeaf2ff, glow: 0x2f6bff,
+      // Bright blue chakra threaded with near black seal marks, the
+      // tomoe swirls from the Magnet Release Rasengan.
+      shell: [0xdceaff, 0x6fa8ff, 0x2f6bff, 0x0a1030],
+      shellWeights: [0.26, 0.32, 0.24, 0.18],
+      swirl: 0x4d8dff,
+      spin: 3.1, flicker: 0.04, emberCount: 0, sealCount: 260, orbs: 5
+    },
+    lava: {
+      label: "Lava Release Rasengan",
+      core: 0xffc93f, coreInner: 0xfff3c4, glow: 0xff6a00,
+      // Molten surface: bright yellow white heat, orange flow, deep red
+      // crust and dark rock flecks, with embers thrown off the surface.
+      shell: [0xfff3c4, 0xffc93f, 0xff7b00, 0xd63c00, 0x38100a],
+      shellWeights: [0.16, 0.30, 0.28, 0.16, 0.10],
+      swirl: 0xff8c2e,
+      spin: 2.2, flicker: 0.16, emberCount: 420, sealCount: 0, orbs: 0
+    }
+  };
+
+  function pickWeighted(colors, weights, r) {
+    var acc = 0;
+    for (var i = 0; i < weights.length; i++) {
+      acc += weights[i];
+      if (r <= acc) return colors[i];
+    }
+    return colors[colors.length - 1];
+  }
+
+  // ---------- Three.js scene, pixel space at z = 0 ----------
+  var canvas = document.getElementById("fx");
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+
+  var scene = new THREE.Scene();
+  var camera = null;
+  var viewW = 0, viewH = 0;
+
+  function resize() {
+    viewW = window.innerWidth; viewH = window.innerHeight;
+    renderer.setSize(viewW, viewH);
+    var fov = 40;
+    var dist = (viewH / 2) / Math.tan(THREE.MathUtils.degToRad(fov / 2));
+    camera = new THREE.PerspectiveCamera(fov, viewW / viewH, 1, dist * 4);
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function screenToWorld(nx, ny) {
+    return { x: (nx - 0.5) * viewW, y: (0.5 - ny) * viewH };
+  }
+
+  // Soft round sprite texture for glow and particles.
+  function makeGlowTexture() {
+    var c = document.createElement("canvas"); c.width = c.height = 128;
+    var g = c.getContext("2d");
+    var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.35, "rgba(255,255,255,0.45)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  }
+  var glowTex = makeGlowTexture();
+
+  var group = new THREE.Group();
+  scene.add(group);
+
+  // Core: two nested spheres plus a glow sprite.
+  var coreInner = new THREE.Mesh(
+    new THREE.SphereGeometry(0.52, 32, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 })
+  );
+  var coreOuter = new THREE.Mesh(
+    new THREE.SphereGeometry(0.78, 32, 32),
+    new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.38, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  var glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: 0x4db2ff, transparent: true, opacity: 0.85,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  glow.scale.set(3.4, 3.4, 1);
+  group.add(glow); group.add(coreOuter); group.add(coreInner);
+
+  // Shell particles on a sphere, stored in spherical coordinates so the
+  // whole shell can churn: fast at the equator, slower at the poles.
+  var SHELL_N = 9000;
+  var shellGeo = new THREE.BufferGeometry();
+  var shellPos = new Float32Array(SHELL_N * 3);
+  var shellCol = new Float32Array(SHELL_N * 3);
+  var shellTargetCol = new Float32Array(SHELL_N * 3);
+  var shellTheta = new Float32Array(SHELL_N);   // around Y axis
+  var shellPhi = new Float32Array(SHELL_N);     // from +Y pole
+  var shellRad = new Float32Array(SHELL_N);     // 0.9 .. 1.05 of radius
+  var shellSeed = new Float32Array(SHELL_N);
+  (function initShell() {
+    var golden = Math.PI * (3 - Math.sqrt(5));
+    for (var i = 0; i < SHELL_N; i++) {
+      var y = 1 - (i / (SHELL_N - 1)) * 2;
+      var phi = Math.acos(Math.max(-1, Math.min(1, y)));
+      shellPhi[i] = phi;
+      shellTheta[i] = golden * i;
+      shellRad[i] = 0.90 + Math.random() * 0.15;
+      shellSeed[i] = Math.random();
+    }
+  })();
+  shellGeo.setAttribute("position", new THREE.BufferAttribute(shellPos, 3));
+  shellGeo.setAttribute("color", new THREE.BufferAttribute(shellCol, 3));
+  var shell = new THREE.Points(shellGeo, new THREE.PointsMaterial({
+    size: 5.2, map: glowTex, vertexColors: true, transparent: true, opacity: 0.95,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+  }));
+  group.add(shell);
+
+  // Swirl disc: a flattened ring of streaks around the sphere, reads as
+  // rotational blur when it spins.
+  var SWIRL_N = 700;
+  var swirlGeo = new THREE.BufferGeometry();
+  var swirlPos = new Float32Array(SWIRL_N * 3);
+  var swirlAng = new Float32Array(SWIRL_N);
+  var swirlRad = new Float32Array(SWIRL_N);
+  var swirlY = new Float32Array(SWIRL_N);
+  (function initSwirl() {
+    for (var i = 0; i < SWIRL_N; i++) {
+      swirlAng[i] = Math.random() * Math.PI * 2;
+      swirlRad[i] = 1.05 + Math.random() * 0.55;
+      swirlY[i] = (Math.random() - 0.5) * 0.22;
+    }
+  })();
+  swirlGeo.setAttribute("position", new THREE.BufferAttribute(swirlPos, 3));
+  var swirl = new THREE.Points(swirlGeo, new THREE.PointsMaterial({
+    size: 7, map: glowTex, color: 0x7cc4ff, transparent: true, opacity: 0.5,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+  }));
+  group.add(swirl);
+
+  // Embers (Lava style): particles thrown off the surface that rise,
+  // flicker and fall back. Allocated at max count, drawn per style.
+  var EMBER_MAX = 420;
+  var emberGeo = new THREE.BufferGeometry();
+  var emberPos = new Float32Array(EMBER_MAX * 3);
+  var emberVel = new Float32Array(EMBER_MAX * 3);
+  var emberLife = new Float32Array(EMBER_MAX);
+  emberGeo.setAttribute("position", new THREE.BufferAttribute(emberPos, 3));
+  var embers = new THREE.Points(emberGeo, new THREE.PointsMaterial({
+    size: 6, map: glowTex, color: 0xffa63f, transparent: true, opacity: 0.9,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+  }));
+  embers.visible = false;
+  group.add(embers);
+
+  function respawnEmber(i, radius) {
+    var th = Math.random() * Math.PI * 2;
+    var ph = Math.acos(2 * Math.random() - 1);
+    var sp = Math.sin(ph);
+    emberPos[i * 3] = Math.cos(th) * sp * radius;
+    emberPos[i * 3 + 1] = Math.cos(ph) * radius;
+    emberPos[i * 3 + 2] = Math.sin(th) * sp * radius;
+    emberVel[i * 3] = emberPos[i * 3] * 0.35;
+    emberVel[i * 3 + 1] = radius * (0.55 + Math.random() * 0.7);
+    emberVel[i * 3 + 2] = emberPos[i * 3 + 2] * 0.35;
+    emberLife[i] = 0.7 + Math.random() * 0.9;
+  }
+
+  // Orbiting black orbs (Magnet style), like the orbs around Naruto in
+  // Six Paths mode. Small dark spheres with a faint rim glow sprite.
+  var orbGroup = new THREE.Group();
+  var orbMeshes = [];
+  for (var oi = 0; oi < 5; oi++) {
+    var orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.09, 20, 20),
+      new THREE.MeshBasicMaterial({ color: 0x05070f })
+    );
+    var rim = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: 0x2f6bff, transparent: true, opacity: 0.35,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    rim.scale.set(0.34, 0.34, 1);
+    orb.add(rim);
+    orbGroup.add(orb);
+    orbMeshes.push(orb);
+  }
+  orbGroup.visible = false;
+  group.add(orbGroup);
+
+  // ---------- Style state and transitions ----------
+  var currentStyle = "classic";
+  var colorBlend = 1; // 1 = fully on current style colours
+
+  function applyStyleColors(name) {
+    var st = STYLES[name];
+    var col = new THREE.Color();
+    for (var i = 0; i < SHELL_N; i++) {
+      col.setHex(pickWeighted(st.shell, st.shellWeights, shellSeed[i]));
+      // Seal marks for Magnet: a seeded slice of the shell goes dark.
+      if (st.sealCount > 0 && shellSeed[i] > 1 - (st.sealCount / SHELL_N) * 3.2) {
+        col.setHex(0x0a1030);
+      }
+      shellTargetCol[i * 3] = col.r; shellTargetCol[i * 3 + 1] = col.g; shellTargetCol[i * 3 + 2] = col.b;
+      if (colorBlend >= 1) {
+        shellCol[i * 3] = col.r; shellCol[i * 3 + 1] = col.g; shellCol[i * 3 + 2] = col.b;
+      }
+    }
+    shellGeo.attributes.color.needsUpdate = true;
+    coreOuter.material.color.setHex(st.core);
+    coreInner.material.color.setHex(st.coreInner);
+    glow.material.color.setHex(st.glow);
+    swirl.material.color.setHex(st.swirl);
+    embers.visible = st.emberCount > 0;
+    orbGroup.visible = st.orbs > 0;
+    if (embers.visible) {
+      for (var e = 0; e < EMBER_MAX; e++) respawnEmber(e, 1);
+    }
+  }
+
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".style-btn"));
+  function setStyle(name) {
+    if (!STYLES[name] || name === currentStyle && colorBlend >= 1) return;
+    currentStyle = name;
+    colorBlend = 0;
+    applyStyleColors(name);
+    buttons.forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-style") === name); });
+    setStatus(STYLES[name].label + ". Open hand to hold it, fist to charge.");
+  }
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { setStyle(b.getAttribute("data-style")); });
+  });
+  window.addEventListener("keydown", function (ev) {
+    if (ev.key === "1") setStyle("classic");
+    else if (ev.key === "2") setStyle("magnet");
+    else if (ev.key === "3") setStyle("lava");
+  });
+  applyStyleColors("classic");
+
+  // ---------- Hand tracking ----------
+  var target = { x: 0, y: 0, radius: 90, has: false, fist: false };
+  var lastHandAt = 0;
+  var mouse = { x: 0.5, y: 0.42 };
+  window.addEventListener("mousemove", function (ev) {
+    mouse.x = ev.clientX / viewW; mouse.y = ev.clientY / viewH;
+  });
+
+  function dist(a, b) {
+    var dx = a.x - b.x, dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function onResults(results) {
+    var lm = results.multiHandLandmarks && results.multiHandLandmarks[0];
+    if (!lm) { target.has = false; return; }
+    target.has = true;
+    lastHandAt = performance.now();
+
+    // Palm centre from wrist and the two outer knuckles.
+    var cx = (lm[0].x + lm[5].x + lm[17].x) / 3;
+    var cy = (lm[0].y + lm[5].y + lm[17].y) / 3;
+    // Float the sphere above the palm, toward the middle finger knuckle.
+    cx += (lm[9].x - lm[0].x) * 0.35;
+    cy += (lm[9].y - lm[0].y) * 0.35;
+
+    var palmW = dist(lm[5], lm[17]);
+    var w = screenToWorld(1 - cx, cy); // video is mirrored
+    target.x = w.x; target.y = w.y;
+    target.radius = Math.max(46, Math.min(190, palmW * viewW * 1.55));
+
+    // Fist: fingertips pulled in close to the wrist relative to palm size.
+    var tips = [8, 12, 16, 20];
+    var sum = 0;
+    for (var i = 0; i < tips.length; i++) sum += dist(lm[tips[i]], lm[0]);
+    target.fist = (sum / tips.length) < palmW * 1.55;
+  }
+
+  var video = document.getElementById("camera");
+  var cameraStarted = false;
+  try {
+    var hands = new Hands({
+      locateFile: function (file) {
+        return "https://cdn.jsdelivr.net/npm/@mediapipe/hands/" + file;
+      }
+    });
+    hands.setOptions({
+      maxNumHands: 1, modelComplexity: 1,
+      minDetectionConfidence: 0.6, minTrackingConfidence: 0.5
+    });
+    hands.onResults(onResults);
+    var mpCamera = new Camera(video, {
+      onFrame: function () { return hands.send({ image: video }); },
+      width: 1280, height: 720
+    });
+    mpCamera.start().then(function () {
+      cameraStarted = true;
+      setStatus("Camera on. Show your open palm.");
+    }).catch(function () {
+      setStatus("Camera unavailable. Demo mode: the sphere follows your mouse.");
+    });
+  } catch (err) {
+    setStatus("Hand tracking unavailable. Demo mode: the sphere follows your mouse.");
+  }
+  setTimeout(function () {
+    if (!cameraStarted) setStatus("Demo mode: the sphere follows your mouse. Allow the camera for hand control.");
+  }, 6000);
+
+  // ---------- Animation ----------
+  var pos = { x: 0, y: viewH * 0.05, radius: 95 };
+  var spinAngle = 0;
+  var charge = 0; // 0 calm .. 1 fully charged (fist)
+  var lastT = performance.now();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    var now = performance.now();
+    var dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+    var st = STYLES[currentStyle];
+
+    // Where should the sphere be?
+    var want;
+    if (target.has && now - lastHandAt < 1600) {
+      want = { x: target.x, y: target.y, radius: target.radius };
+    } else {
+      var mw = screenToWorld(mouse.x, mouse.y);
+      want = { x: mw.x, y: mw.y, radius: 95 };
+    }
+    var k = 1 - Math.pow(0.0001, dt); // smooth follow
+    pos.x += (want.x - pos.x) * k;
+    pos.y += (want.y - pos.y) * k;
+    pos.radius += (want.radius - pos.radius) * k;
+
+    // Charge from a fist.
+    var chargeTarget = (target.has && target.fist) ? 1 : 0;
+    charge += (chargeTarget - charge) * Math.min(1, dt * 5);
+
+    var R = pos.radius * (1 - charge * 0.30);
+    var flick = 1 + (Math.random() - 0.5) * st.flicker * (1 + charge);
+    group.position.set(pos.x, pos.y + Math.sin(now * 0.0016) * 4, 0);
+    group.scale.set(R * flick, R * flick, R * flick);
+
+    // Spin: faster at the equator, faster again while charging.
+    spinAngle += dt * st.spin * (1 + charge * 1.6);
+    for (var i = 0; i < SHELL_N; i++) {
+      var phi = shellPhi[i];
+      var latSpeed = 0.45 + Math.sin(phi) * 0.9;
+      var th = shellTheta[i] + spinAngle * latSpeed + shellSeed[i] * 0.6;
+      var sp = Math.sin(phi), r = shellRad[i];
+      shellPos[i * 3] = Math.cos(th) * sp * r;
+      shellPos[i * 3 + 1] = Math.cos(phi) * r;
+      shellPos[i * 3 + 2] = Math.sin(th) * sp * r;
+    }
+    shellGeo.attributes.position.needsUpdate = true;
+
+    // Colour transitions between styles.
+    if (colorBlend < 1) {
+      colorBlend = Math.min(1, colorBlend + dt * 2.2);
+      for (var j = 0; j < SHELL_N * 3; j++) {
+        shellCol[j] += (shellTargetCol[j] - shellCol[j]) * Math.min(1, dt * 7);
+      }
+      shellGeo.attributes.color.needsUpdate = true;
+    }
+
+    // Swirl disc spins hard, tilts a little with charge.
+    for (var s = 0; s < SWIRL_N; s++) {
+      var a = swirlAng[s] + spinAngle * 1.9;
+      swirlPos[s * 3] = Math.cos(a) * swirlRad[s];
+      swirlPos[s * 3 + 1] = swirlY[s] * (1 - charge * 0.4);
+      swirlPos[s * 3 + 2] = Math.sin(a) * swirlRad[s];
+    }
+    swirlGeo.attributes.position.needsUpdate = true;
+    swirl.material.opacity = 0.35 + charge * 0.3;
+
+    // Core and glow pulse.
+    var pulse = 1 + Math.sin(now * 0.006) * 0.03 + charge * 0.12;
+    coreInner.scale.set(pulse, pulse, pulse);
+    coreOuter.scale.set(pulse * (1 + charge * 0.1), pulse * (1 + charge * 0.1), pulse * (1 + charge * 0.1));
+    glow.material.opacity = 0.65 + charge * 0.35;
+    var gs = 3.4 + charge * 0.9 + Math.sin(now * 0.004) * 0.12;
+    glow.scale.set(gs, gs, 1);
+
+    // Embers (lava).
+    if (embers.visible) {
+      for (var e2 = 0; e2 < EMBER_MAX; e2++) {
+        emberLife[e2] -= dt;
+        if (emberLife[e2] <= 0) { respawnEmber(e2, 1); continue; }
+        emberPos[e2 * 3] += emberVel[e2 * 3] * dt * (0.4 + charge * 0.5);
+        emberPos[e2 * 3 + 1] += emberVel[e2 * 3 + 1] * dt * (0.4 + charge * 0.5);
+        emberPos[e2 * 3 + 2] += emberVel[e2 * 3 + 2] * dt * (0.4 + charge * 0.5);
+        emberVel[e2 * 3 + 1] -= dt * 0.55; // embers arc and fall back
+      }
+      emberGeo.attributes.position.needsUpdate = true;
+    }
+
+    // Orbs (magnet) circle the sphere on a tilted plane.
+    if (orbGroup.visible) {
+      for (var o = 0; o < orbMeshes.length; o++) {
+        var oa = spinAngle * 0.7 + (o / orbMeshes.length) * Math.PI * 2;
+        orbMeshes[o].position.set(
+          Math.cos(oa) * 1.45,
+          Math.sin(oa * 1.0) * 0.42,
+          Math.sin(oa) * 1.45
+        );
+      }
+    }
+
+    renderer.render(scene, camera);
+  }
+  animate();
+})();
+</script>
+</body>
+</html>
