@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Rasengan Remake: Magnet and Lava Styles</title>
+<title>Rasengan Remake: Classic, Magnet, Lava and Rasenshuriken</title>
 <style>
   :root {
     --ui-bg: rgba(0, 0, 0, 0.45);
@@ -38,7 +38,8 @@
   #guide { right: 16px; top: 16px; font-size: 12px; color: var(--ui-muted); max-width: min(320px, calc(100vw - 32px)); }
   #styles {
     left: 50%; bottom: 18px; transform: translateX(-50%);
-    display: flex; gap: 8px; padding: 10px;
+    display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; justify-content: center;
+    max-width: calc(100vw - 24px);
   }
   .style-btn {
     appearance: none; border: 1px solid var(--ui-border); cursor: pointer;
@@ -51,6 +52,8 @@
   .style-btn[data-style="magnet"].active { box-shadow: 0 0 18px rgba(70, 130, 255, 0.55); }
   .style-btn[data-style="lava"].active { box-shadow: 0 0 18px rgba(255, 110, 30, 0.55); }
   .style-btn[data-style="classic"].active { box-shadow: 0 0 18px rgba(140, 210, 255, 0.55); }
+  .style-btn[data-style="shuriken"].active { box-shadow: 0 0 18px rgba(170, 240, 255, 0.6); }
+  #guide div { margin: 3px 0; }
 </style>
 </head>
 <body>
@@ -60,18 +63,24 @@
 
   <div id="hud" class="panel">
     <div class="title">Rasengan Remake</div>
-    <div class="sub">A real time particle Rasengan that sits in your palm. No effect videos, every spark is generated live. Open your hand to hold it, make a fist to charge it.</div>
+    <div class="sub">A Rasengan made of live particles. It sits above your palm and follows your hand. No effect videos, every spark is generated as you move.</div>
     <div id="status">Starting camera...</div>
   </div>
 
   <div id="guide" class="panel">
-    Keys 1, 2, 3 switch style. Fist: charge and compress. Open hand: release. No camera? The sphere idles at centre and follows your mouse.
+    <div><strong>How to use</strong></div>
+    <div>1. Show your open palm. The Rasengan appears above it.</div>
+    <div>2. Move your hand. The Rasengan follows you.</div>
+    <div>3. Make a fist to charge it. Open your hand to release it.</div>
+    <div>4. Press 1, 2, 3, 4 or tap a button to change the style.</div>
+    <div>5. Take your hand away. The Rasengan stays where you left it.</div>
   </div>
 
   <div id="styles" class="panel">
     <button class="style-btn active" data-style="classic">1 · Classic<small>Wind blue Rasengan</small></button>
     <button class="style-btn" data-style="magnet">2 · Magnet<small>Jiton, seal swirls</small></button>
     <button class="style-btn" data-style="lava">3 · Lava<small>Yoton, molten core</small></button>
+    <button class="style-btn" data-style="shuriken">4 · Shuriken<small>Rasenshuriken, four blades</small></button>
   </div>
 </div>
 
@@ -95,7 +104,8 @@
       shell: [0xeaf7ff, 0x9fd4ff, 0x3f9bf0, 0x1c6fd6],
       shellWeights: [0.30, 0.34, 0.24, 0.12],
       swirl: 0x7cc4ff,
-      spin: 2.6, flicker: 0.05, emberCount: 0, sealCount: 0, orbs: 0
+      spin: 2.6, flicker: 0.05, emberCount: 0, sealCount: 0, orbs: 0,
+      blades: 0, smoke: 0, shellScale: 1
     },
     magnet: {
       label: "Magnet Release Rasengan",
@@ -105,7 +115,8 @@
       shell: [0xdceaff, 0x6fa8ff, 0x2f6bff, 0x0a1030],
       shellWeights: [0.26, 0.32, 0.24, 0.18],
       swirl: 0x4d8dff,
-      spin: 3.1, flicker: 0.04, emberCount: 0, sealCount: 260, orbs: 5
+      spin: 3.1, flicker: 0.04, emberCount: 0, sealCount: 260, orbs: 5,
+      blades: 0, smoke: 0, shellScale: 1
     },
     lava: {
       label: "Lava Release Rasengan",
@@ -115,7 +126,19 @@
       shell: [0xfff3c4, 0xffc93f, 0xff7b00, 0xd63c00, 0x38100a],
       shellWeights: [0.16, 0.30, 0.28, 0.16, 0.10],
       swirl: 0xff8c2e,
-      spin: 2.2, flicker: 0.16, emberCount: 420, sealCount: 0, orbs: 0
+      spin: 2.2, flicker: 0.16, emberCount: 420, sealCount: 0, orbs: 0,
+      blades: 0, smoke: 0.15, shellScale: 1
+    },
+    shuriken: {
+      label: "Rasenshuriken",
+      core: 0xd8f6ff, coreInner: 0xffffff, glow: 0x8fe3ff,
+      // Wind Release Rasenshuriken: a white hot core and pale blades.
+      // The shell pulls in tight so the four blades own the silhouette.
+      shell: [0xffffff, 0xdff4ff, 0x9fe0ff, 0x54b9ff],
+      shellWeights: [0.34, 0.30, 0.22, 0.14],
+      swirl: 0x9fe8ff,
+      spin: 3.4, flicker: 0.05, emberCount: 0, sealCount: 0, orbs: 0,
+      blades: 1, smoke: 0, shellScale: 0.8
     }
   };
 
@@ -176,13 +199,20 @@
   );
   var coreOuter = new THREE.Mesh(
     new THREE.SphereGeometry(0.78, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.38, blending: THREE.AdditiveBlending, depthWrite: false })
+    new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.34, blending: THREE.AdditiveBlending, depthWrite: false })
   );
   var glow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTex, color: 0x4db2ff, transparent: true, opacity: 0.85,
     blending: THREE.AdditiveBlending, depthWrite: false
   }));
   glow.scale.set(3.4, 3.4, 1);
+  // Pale smoke cloud (Lava style), the steam rolling off the molten
+  // sphere in the reference image. Normal blending, very low opacity.
+  var smoke = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, color: 0xe9e5da, transparent: true, opacity: 0, depthWrite: false
+  }));
+  smoke.scale.set(5.6, 5.6, 1);
+  group.add(smoke);
   group.add(glow); group.add(coreOuter); group.add(coreInner);
 
   // Shell particles on a sphere, stored in spherical coordinates so the
@@ -210,7 +240,7 @@
   shellGeo.setAttribute("position", new THREE.BufferAttribute(shellPos, 3));
   shellGeo.setAttribute("color", new THREE.BufferAttribute(shellCol, 3));
   var shell = new THREE.Points(shellGeo, new THREE.PointsMaterial({
-    size: 5.2, map: glowTex, vertexColors: true, transparent: true, opacity: 0.95,
+    size: 4.7, map: glowTex, vertexColors: true, transparent: true, opacity: 0.95,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
   }));
   group.add(shell);
@@ -236,6 +266,45 @@
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
   }));
   group.add(swirl);
+
+  // Rasenshuriken blades: four curved blades of particles in the plane
+  // facing the camera, plus a thin disc ring at their root. Positions
+  // are fixed in local space; the whole group spins around Z.
+  var BLADE_N = 3000;
+  var bladeGeo = new THREE.BufferGeometry();
+  var bladePos = new Float32Array(BLADE_N * 3);
+  (function initBlades() {
+    for (var i = 0; i < BLADE_N; i++) {
+      var x, y;
+      if (i < 500) {
+        // Disc ring at the root of the blades.
+        var ra = Math.random() * Math.PI * 2;
+        var rr = 0.95 + Math.random() * 0.3;
+        x = Math.cos(ra) * rr; y = Math.sin(ra) * rr;
+      } else {
+        var blade = i % 4;
+        var t = Math.pow(Math.random(), 0.8);
+        var base = blade * Math.PI / 2;
+        var ang = base + t * 1.05;                    // sweep back
+        var rad = 0.62 + t * 1.85;                    // out to the tip
+        var off = (Math.random() - 0.5) * 0.36 * (1 - t * 0.45);
+        x = Math.cos(ang) * rad - Math.sin(ang) * off;
+        y = Math.sin(ang) * rad + Math.cos(ang) * off;
+      }
+      bladePos[i * 3] = x;
+      bladePos[i * 3 + 1] = y;
+      bladePos[i * 3 + 2] = (Math.random() - 0.5) * 0.06;
+    }
+  })();
+  bladeGeo.setAttribute("position", new THREE.BufferAttribute(bladePos, 3));
+  var bladeGroup = new THREE.Group();
+  var blades = new THREE.Points(bladeGeo, new THREE.PointsMaterial({
+    size: 6.4, map: glowTex, color: 0xcdf2ff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+  }));
+  bladeGroup.add(blades);
+  bladeGroup.visible = false;
+  group.add(bladeGroup);
 
   // Embers (Lava style): particles thrown off the surface that rise,
   // flicker and fall back. Allocated at max count, drawn per style.
@@ -295,9 +364,13 @@
     var col = new THREE.Color();
     for (var i = 0; i < SHELL_N; i++) {
       col.setHex(pickWeighted(st.shell, st.shellWeights, shellSeed[i]));
-      // Seal marks for Magnet: a seeded slice of the shell goes dark.
-      if (st.sealCount > 0 && shellSeed[i] > 1 - (st.sealCount / SHELL_N) * 3.2) {
-        col.setHex(0x0a1030);
+      // Seal marks for Magnet: dark patches swirled through the blue,
+      // placed by a wave over the shell so they read as the tomoe seal
+      // clusters in the reference image, not random noise.
+      if (name === "magnet") {
+        var patch = Math.sin(shellPhi[i] * 3.0 + shellSeed[i] * 6.28) *
+                    Math.cos(shellTheta[i] * 2.0 + shellSeed[i] * 3.0);
+        if (patch > 0.42) col.setHex(0x0a1030);
       }
       shellTargetCol[i * 3] = col.r; shellTargetCol[i * 3 + 1] = col.g; shellTargetCol[i * 3 + 2] = col.b;
       if (colorBlend >= 1) {
@@ -332,12 +405,14 @@
     if (ev.key === "1") setStyle("classic");
     else if (ev.key === "2") setStyle("magnet");
     else if (ev.key === "3") setStyle("lava");
+    else if (ev.key === "4") setStyle("shuriken");
   });
   applyStyleColors("classic");
 
   // ---------- Hand tracking ----------
   var target = { x: 0, y: 0, radius: 90, has: false, fist: false };
   var lastHandAt = 0;
+  var everHadHand = false;
   var mouse = { x: 0.5, y: 0.42 };
   window.addEventListener("mousemove", function (ev) {
     mouse.x = ev.clientX / viewW; mouse.y = ev.clientY / viewH;
@@ -352,6 +427,7 @@
     var lm = results.multiHandLandmarks && results.multiHandLandmarks[0];
     if (!lm) { target.has = false; return; }
     target.has = true;
+    everHadHand = true;
     lastHandAt = performance.now();
 
     // Palm centre from wrist and the two outer knuckles.
@@ -407,6 +483,9 @@
   var pos = { x: 0, y: viewH * 0.05, radius: 95 };
   var spinAngle = 0;
   var charge = 0; // 0 calm .. 1 fully charged (fist)
+  var wasFist = false;
+  var pulseT = -1; // release pulse timer, -1 = idle
+  var handLive = false;
   var lastT = performance.now();
 
   function animate() {
@@ -416,10 +495,24 @@
     lastT = now;
     var st = STYLES[currentStyle];
 
-    // Where should the sphere be?
+    // Where should the sphere be? While the hand is live it follows the
+    // palm. Once a hand has held it, losing the hand leaves the sphere
+    // floating at its last spot: it never disappears. The mouse demo
+    // only runs before the first hand appears.
+    var live = target.has && now - lastHandAt < 1600;
+    if (live !== handLive) {
+      handLive = live;
+      if (!live && everHadHand) {
+        setStatus("Your hand is gone. The Rasengan stays here. Show your palm to pick it up again.");
+      } else if (live) {
+        setStatus(STYLES[currentStyle].label + ". Fist to charge, open hand to release.");
+      }
+    }
     var want;
-    if (target.has && now - lastHandAt < 1600) {
+    if (live) {
       want = { x: target.x, y: target.y, radius: target.radius };
+    } else if (everHadHand) {
+      want = { x: pos.x, y: pos.y, radius: pos.radius };
     } else {
       var mw = screenToWorld(mouse.x, mouse.y);
       want = { x: mw.x, y: mw.y, radius: 95 };
@@ -433,10 +526,23 @@
     var chargeTarget = (target.has && target.fist) ? 1 : 0;
     charge += (chargeTarget - charge) * Math.min(1, dt * 5);
 
+    // Release: a charged fist opening throws the energy out. In
+    // Shuriken style the whole thing flares wide, like the throw at
+    // the end of the reference video.
+    if (wasFist && target.has && !target.fist && charge > 0.45 && pulseT < 0) pulseT = 0;
+    wasFist = target.has && target.fist;
+    var pulseScale = 1;
+    if (pulseT >= 0) {
+      pulseT += dt;
+      var pt = pulseT / 0.9;
+      if (pt >= 1) pulseT = -1;
+      else pulseScale = 1 + Math.sin(pt * Math.PI) * (currentStyle === "shuriken" ? 1.9 : 0.55);
+    }
+
     var R = pos.radius * (1 - charge * 0.30);
     var flick = 1 + (Math.random() - 0.5) * st.flicker * (1 + charge);
     group.position.set(pos.x, pos.y + Math.sin(now * 0.0016) * 4, 0);
-    group.scale.set(R * flick, R * flick, R * flick);
+    group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
 
     // Spin: faster at the equator, faster again while charging.
     spinAngle += dt * st.spin * (1 + charge * 1.6);
@@ -468,13 +574,33 @@
       swirlPos[s * 3 + 2] = Math.sin(a) * swirlRad[s];
     }
     swirlGeo.attributes.position.needsUpdate = true;
-    swirl.material.opacity = 0.35 + charge * 0.3;
+    swirl.material.opacity = st.blades ? 0.06 : 0.35 + charge * 0.3;
+
+    // Rasenshuriken blades fade in for that style and spin hard,
+    // faster while charged and faster again during the release flare.
+    var bladeTarget = st.blades ? 0.9 : 0;
+    blades.material.opacity += (bladeTarget - blades.material.opacity) * Math.min(1, dt * 6);
+    bladeGroup.visible = blades.material.opacity > 0.02;
+    if (bladeGroup.visible) {
+      bladeGroup.rotation.z -= dt * (7 + charge * 8) * (pulseT >= 0 ? 1.6 : 1);
+    }
+
+    // Smoke (Lava) drifts to its style level and breathes slowly.
+    smoke.material.opacity += ((st.smoke || 0) - smoke.material.opacity) * Math.min(1, dt * 3);
+    var ss = 5.6 + Math.sin(now * 0.0011) * 0.35;
+    smoke.scale.set(ss, ss, 1);
+
+    // The shell pulls in tight in Shuriken style so the blades own
+    // the silhouette.
+    var shTarget = st.shellScale || 1;
+    var shNow = shell.scale.x + (shTarget - shell.scale.x) * Math.min(1, dt * 5);
+    shell.scale.set(shNow, shNow, shNow);
 
     // Core and glow pulse.
     var pulse = 1 + Math.sin(now * 0.006) * 0.03 + charge * 0.12;
     coreInner.scale.set(pulse, pulse, pulse);
     coreOuter.scale.set(pulse * (1 + charge * 0.1), pulse * (1 + charge * 0.1), pulse * (1 + charge * 0.1));
-    glow.material.opacity = 0.65 + charge * 0.35;
+    glow.material.opacity = Math.min(1, 0.65 + charge * 0.35 + (pulseT >= 0 ? 0.3 : 0));
     var gs = 3.4 + charge * 0.9 + Math.sin(now * 0.004) * 0.12;
     glow.scale.set(gs, gs, 1);
 
