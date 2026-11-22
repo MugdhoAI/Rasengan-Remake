@@ -35,7 +35,7 @@
   #hud .title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
   #hud .sub { font-size: 12px; color: var(--ui-muted); }
   #status { margin-top: 8px; font-size: 12px; min-height: 18px; }
-  #guide { right: 16px; top: 16px; font-size: 12px; color: var(--ui-muted); max-width: min(330px, calc(100vw - 32px)); }
+  #guide { right: 16px; top: 16px; font-size: 12px; color: var(--ui-muted); max-width: min(340px, calc(100vw - 32px)); }
   #guide div { margin: 3px 0; }
   #styles {
     left: 50%; bottom: 18px; transform: translateX(-50%);
@@ -50,8 +50,8 @@
   }
   .style-btn small { display: block; font-weight: 400; font-size: 11px; color: var(--ui-muted); letter-spacing: 0; }
   .style-btn.active { border-color: rgba(255, 255, 255, 0.65); background: rgba(255, 255, 255, 0.16); }
-  .style-btn[data-style="magnet"].active, .style-btn[data-style="magnetShuriken"].active { box-shadow: 0 0 18px rgba(70, 130, 255, 0.55); }
-  .style-btn[data-style="lava"].active, .style-btn[data-style="lavaShuriken"].active { box-shadow: 0 0 18px rgba(255, 110, 30, 0.55); }
+  .style-btn[data-style="magnetShuriken"].active { box-shadow: 0 0 18px rgba(70, 130, 255, 0.55); }
+  .style-btn[data-style="lavaShuriken"].active { box-shadow: 0 0 18px rgba(255, 110, 30, 0.55); }
   .style-btn[data-style="classic"].active { box-shadow: 0 0 18px rgba(140, 210, 255, 0.55); }
   .style-btn[data-style="shuriken"].active { box-shadow: 0 0 18px rgba(170, 240, 255, 0.6); }
   .style-btn[data-style="dual"].active { box-shadow: 0 0 18px rgba(150, 120, 255, 0.65); }
@@ -64,7 +64,7 @@
 
   <div id="hud" class="panel">
     <div class="title">Rasengan Remake</div>
-    <div class="sub">A Rasengan that appears above your palm. Five styles: the Classic Rasengan, three Rasenshuriken with spinning cloud wing discs, and one exceptional Dual style holding Magnet and Lava together.</div>
+    <div class="sub">A Rasengan that appears above your palm. Five styles: the Classic Rasengan, three Rasenshuriken with spinning cloud wing discs, and Dual, where both hands hold a different nature at once.</div>
     <div id="status">Starting camera...</div>
   </div>
 
@@ -75,6 +75,7 @@
     <div>3. Make a fist to charge it. Open your hand to release it.</div>
     <div>4. Press 1 to 5 or tap a button to change the style.</div>
     <div>5. Take your hand away. The Rasengan fades out.</div>
+    <div>6. Style 5 is Dual: show both hands. Magnet forms in your left hand, Lava in your right.</div>
   </div>
 
   <div id="styles" class="panel">
@@ -82,7 +83,7 @@
     <button class="style-btn" data-style="shuriken">2 · Wind Shuriken<small>Rasenshuriken</small></button>
     <button class="style-btn" data-style="magnetShuriken">3 · Magnet Shuriken<small>Jiton Rasenshuriken</small></button>
     <button class="style-btn" data-style="lavaShuriken">4 · Lava Shuriken<small>Yoton Rasenshuriken</small></button>
-    <button class="style-btn" data-style="dual">5 · Dual<small>Magnet + Lava Rasenshuriken</small></button>
+    <button class="style-btn" data-style="dual">5 · Dual<small>Two hands: Magnet + Lava</small></button>
   </div>
 </div>
 
@@ -94,13 +95,18 @@
   "use strict";
 
   var statusEl = document.getElementById("status");
-  function setStatus(t) { statusEl.textContent = t; }
+  var lastStatus = "";
+  function setStatus(t) {
+    if (t === lastStatus) return;
+    lastStatus = t;
+    statusEl.textContent = t;
+  }
 
   // ============================================================
   // Surfaces, drawn in code from the reference images.
-  // Classic: chaotic thin filaments, white, blue and gold, like the
-  // giant Rasengan of tangled energy threads.
-  // Magnet: deep blue with hundreds of small dark tomoe seals.
+  // Classic: chaotic thin filaments, white, blue and gold.
+  // Magnet: bright blue tiled with the real seal pattern, a ring
+  // with a dot inside it, copied from the sphere Naruto holds.
   // Lava: bright molten orange, big hot areas, thin dark crust.
   // ============================================================
   function makeCanvas(w, h) {
@@ -144,11 +150,9 @@
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
     var i;
-    // Soft churn underneath the filaments
     for (i = 0; i < 46; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 30 + Math.random() * 80, "#bfe6ff", 0.20);
     // Chaotic filaments: thin arcs in every direction, tangled like
-    // the energy threads in the reference. Drawn at three x offsets
-    // so they wrap the sphere with no seam.
+    // the energy threads in the reference
     var cols = ["#ffffff", "#eaf7ff", "#cfeaff", "#ffe9a8"];
     var colW = [0.42, 0.28, 0.18, 0.12];
     for (i = 0; i < 300; i++) {
@@ -170,33 +174,28 @@
         ctx.restore();
       }
     }
-    // Brighter knot of threads near the centre of the front face
     for (i = 0; i < 26; i++) blob(ctx, W, W * 0.5 + (Math.random() - 0.5) * 260, H * 0.5 + (Math.random() - 0.5) * 150, 16 + Math.random() * 42, "#ffffff", 0.30);
     grain(ctx, W, H, 350, "#ffffff", 0.3, 1.8);
     return new THREE.CanvasTexture(c);
   }
 
-  // A proper magatama seal: a round head, then a tail of shrinking
-  // beads sweeping around it, the tomoe spiral from Naruto's sphere.
-  function sealTomoe(ctx, x, y, r, rot, color, alpha) {
+  // The real Magnet seal: a dark ring with a dot inside it, the
+  // pattern tiled over the sphere Naruto holds in Six Paths mode.
+  function sealMark(ctx, x, y, r, color, inner, alpha) {
     ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rot);
     ctx.globalAlpha = alpha;
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(0, 0, r * 0.52, 0, Math.PI * 2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
-    var steps = 7;
-    for (var i = 1; i <= steps; i++) {
-      var t = i / steps;
-      var a = t * Math.PI * 1.55;
-      var dist = r * (0.52 + 0.42 * t);
-      var br = r * 0.34 * (1 - t * 0.72);
-      ctx.beginPath();
-      ctx.arc(Math.cos(a) * dist, Math.sin(a) * dist, br, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    ctx.fillStyle = inner;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.24, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -226,17 +225,15 @@
         ctx.restore();
       }
     }
-    // The seal pattern itself, copied from the sphere Naruto holds:
-    // proper tomoe spirals of one consistent size, tiled evenly over
-    // the whole surface, never clustered into blobs
-    var cols = 11, rows = 6;
+    // The seal pattern itself: ring and dot marks of one consistent
+    // size, tiled evenly over the whole surface
+    var cols = 13, rows = 7;
     for (var gy = 0; gy < rows; gy++) {
       for (var gx = 0; gx < cols; gx++) {
-        var px = (gx + 0.5) * (W / cols) + (Math.random() - 0.5) * 22;
-        var py = (gy + 0.5) * (H / rows) + (Math.random() - 0.5) * 18;
-        var pr = 15 + Math.random() * 4;
-        var prot = Math.random() * Math.PI * 2;
-        for (k = -1; k <= 1; k++) sealTomoe(ctx, px + k * W, py, pr, prot, "#0a1440", 0.92);
+        var px = (gx + 0.5) * (W / cols) + (Math.random() - 0.5) * 16;
+        var py = (gy + 0.5) * (H / rows) + (Math.random() - 0.5) * 12;
+        var pr = 12 + Math.random() * 3;
+        for (k = -1; k <= 1; k++) sealMark(ctx, px + k * W, py, pr, "#0a1440", "#3d8bff", 0.92);
       }
     }
     grain(ctx, W, H, 300, "#bcd6ff", 0.25, 1.6);
@@ -248,15 +245,12 @@
     ctx.fillStyle = "#9c2a00";
     ctx.fillRect(0, 0, W, H);
     var i, x, y;
-    // Broad bright flows first, the reference ball is mostly bright
     for (i = 0; i < 70; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 70 + Math.random() * 150, "#d64a00", 0.5);
     for (i = 0; i < 90; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 44 + Math.random() * 100, "#ff7b00", 0.5);
     for (i = 0; i < 150; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 18 + Math.random() * 52, "#ffa63f", 0.6);
-    // Hot areas
     for (i = 0; i < 130; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 10 + Math.random() * 30, "#ffd23f", 0.7);
     for (i = 0; i < 90; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 6 + Math.random() * 18, "#fff3c4", 0.8);
     for (i = 0; i < 34; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 3 + Math.random() * 8, "#ffffff", 0.85);
-    // Thin crust only, small dark flecks and short cracks
     for (i = 0; i < 70; i++) blob(ctx, W, Math.random() * W, Math.random() * H, 8 + Math.random() * 20, "#4a1202", 0.30);
     ctx.strokeStyle = "#380d02";
     ctx.lineCap = "round";
@@ -278,9 +272,9 @@
 
   // The wing disc is a cloud, drawn like the anime frames: a soft
   // billowing disc of vapour, dense at the heart and wispy at the
-  // rim, with four blade swirls made of denser cloud inside it.
-  // The Magnet version carries its dark seals printed on the cloud,
-  // the only place dark detail can be seen.
+  // rim, with four blades of denser cloud inside it whose tips hook
+  // in the spin. No seals on the wings, ever: the pattern lives
+  // only on the core sphere.
   function wingDiscTexture(mode) {
     var S = 1024, c = makeCanvas(S, S), ctx = c.getContext("2d");
     var cx = S / 2, i, a, rr;
@@ -290,12 +284,8 @@
       magnet: { base: ["rgba(120,170,255,0.60)", "rgba(70,130,255,0.35)", "rgba(47,107,255,0)"],
                 blob: [[143, 184, 255], [111, 168, 255], [77, 141, 255]], blade: [188, 214, 255] },
       lava:   { base: ["rgba(255,170,60,0.55)", "rgba(255,120,20,0.30)", "rgba(220,70,0,0)"],
-                blob: [[255, 210, 63], [255, 154, 31], [255, 123, 0]], blade: [255, 243, 196] },
-      dual:   { base: ["rgba(230,235,255,0.55)", "rgba(205,200,245,0.28)", "rgba(190,180,230,0)"],
-                blob: [[255, 255, 255], [234, 247, 255], [207, 238, 255]], blade: [255, 255, 255] }
+                blob: [[255, 210, 63], [255, 154, 31], [255, 123, 0]], blade: [255, 243, 196] }
     }[mode];
-    var MAGNET_BLOB = [[143, 184, 255], [111, 168, 255], [77, 141, 255]];
-    var LAVA_BLOB = [[255, 210, 63], [255, 154, 31], [255, 123, 0]];
     function puff(px, py, r, rgb, alpha) {
       var g = ctx.createRadialGradient(px, py, 0, px, py, r);
       g.addColorStop(0, "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + "," + alpha + ")");
@@ -309,23 +299,18 @@
     g.addColorStop(1, P.base[2]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, S, S);
-    // Cloud body: soft puffs, denser inside, thinning to a wispy rim.
-    // The Dual cloud is blue on its left half and flame on its right.
+    // Cloud body: soft puffs, denser inside, thinning to a wispy rim
     for (i = 0; i < 900; i++) {
       a = Math.random() * Math.PI * 2;
       rr = Math.pow(Math.random(), 0.6) * 470;
       var edge = 1 - rr / 500;
-      var px2 = cx + Math.cos(a) * rr, py2 = cx + Math.sin(a) * rr;
-      var blobCol = P.blob[i % 3];
-      if (mode === "dual") blobCol = (px2 < cx ? MAGNET_BLOB : LAVA_BLOB)[i % 3];
-      puff(px2, py2, 20 + Math.random() * 60, blobCol, 0.05 + Math.random() * 0.10 * (0.4 + edge));
+      puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr,
+           20 + Math.random() * 60, P.blob[i % 3], 0.05 + Math.random() * 0.10 * (0.4 + edge));
     }
-    // For Lava, a ring of fire clouds sits behind the blades, like
-    // the game frame
-    if (mode === "lava" || mode === "dual") {
+    // For Lava, a ring of fire clouds sits behind the blades
+    if (mode === "lava") {
       for (i = 0; i < 130; i++) {
         a = (i / 130) * Math.PI * 2 + Math.random() * 0.05;
-        if (mode === "dual" && Math.cos(a) <= 0) continue; // Dual: fire ring on the flame half only
         rr = 400 + Math.random() * 80;
         puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 26 + Math.random() * 40, [255, 110, 10], 0.16);
         if (Math.random() < 0.5) puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 18 + Math.random() * 26, [214, 48, 0], 0.14);
@@ -333,22 +318,18 @@
     }
     // Four blades, drawn as soft cloud along a curved spine. The
     // bend grows with the cube of the distance, gentle at the root
-    // and hooking at the tip, the bendy corner of the game frame.
-    // Thick in the middle, tapering to the bent point.
+    // and hooking at the tip. Thick in the middle, tapering out.
     for (var b = 0; b < 4; b++) {
       var base = b * Math.PI / 2;
-      // Dual blades alternate: Magnet blue, Lava flame
-      var bladeCol = mode === "dual" ? (b % 2 === 0 ? [188, 214, 255] : [255, 243, 196]) : P.blade;
-      var flame = mode === "lava" || (mode === "dual" && b % 2 === 1);
       for (var s2 = 0; s2 <= 26; s2++) {
         var t2 = s2 / 26;
         var ang2 = base + t2 * 0.5 + 0.5 * t2 * t2 * t2;
         var rad2 = 70 + t2 * 390;
         var wdt = 48 * Math.pow(Math.sin(Math.PI * Math.min(1, t2 * 1.12)), 0.7) + 2;
         var bx = cx + Math.cos(ang2) * rad2, by = cx + Math.sin(ang2) * rad2;
-        if (flame) puff(bx, by, wdt * 1.5, [255, 120, 20], 0.10);
-        puff(bx, by, wdt, bladeCol, 0.20);
-        puff(bx, by, wdt * 0.55, bladeCol, 0.16);
+        if (mode === "lava") puff(bx, by, wdt * 1.5, [255, 120, 20], 0.10);
+        puff(bx, by, wdt, P.blade, 0.20);
+        puff(bx, by, wdt * 0.55, P.blade, 0.16);
       }
     }
     // Bright heart around the core
@@ -357,8 +338,6 @@
       rr = Math.random() * 130;
       puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr, 16 + Math.random() * 40, P.blade, 0.12);
     }
-    // No seals on the wings, ever. The pattern lives only on the
-    // core sphere, like the real Magnet Rasenshuriken.
     if (mode === "lava") {
       for (i = 0; i < 70; i++) blob(ctx, S, Math.random() * S, Math.random() * S, 6 + Math.random() * 18, "#7a1e00", 0.22);
       for (i = 0; i < 60; i++) {
@@ -378,38 +357,41 @@
       glow: 0x4db2ff, spin: 1.1, flicker: 0.03,
       spark: [0xeaf7ff, 0x9fd4ff, 0x3f9bf0], sparkW: [0.4, 0.36, 0.24],
       swirlColor: 0x7cc4ff, embers: 0, orbs: 0, smoke: 0, shellScale: 1,
-      wings: null, coreGlow: 0xeaf7ff, coreGlowO: 0.42, disc: 0xbfefff
-    },
-    shuriken: {
-      label: "Wind Rasenshuriken", tex: "windHot",
-      glow: 0x8fe3ff, spin: 1.5, flicker: 0.04,
-      spark: [0xffffff, 0xdff4ff, 0x9fe0ff], sparkW: [0.4, 0.34, 0.26],
-      swirlColor: 0x9fe8ff, embers: 0, orbs: 0, smoke: 0, shellScale: 0.85,
-      wings: "wind", coreGlow: 0xffffff, coreGlowO: 0.5, disc: 0xbfefff
+      wings: null, coreGlow: 0xeaf7ff, coreGlowO: 0.42
     },
     magnetShuriken: {
       label: "Magnet Rasenshuriken", tex: "magnet",
       glow: 0x2f6bff, spin: 1.6, flicker: 0.04,
       spark: [0xdceaff, 0x6fa8ff, 0x2f6bff], sparkW: [0.38, 0.36, 0.26],
       swirlColor: 0x4d8dff, embers: 0, orbs: 5, smoke: 0, shellScale: 0.85,
-      wings: "magnet", coreGlow: 0x9fc2ff, coreGlowO: 0.26, disc: 0x2f6bff
+      wings: "magnet", coreGlow: 0x9fc2ff, coreGlowO: 0.26
     },
     lavaShuriken: {
       label: "Lava Rasenshuriken", tex: "lava",
       glow: 0xff6a00, spin: 1.4, flicker: 0.10,
       spark: [0xfff3c4, 0xffc93f, 0xff7b00], sparkW: [0.3, 0.38, 0.32],
       swirlColor: 0xff8c2e, embers: 420, orbs: 0, smoke: 0.16, shellScale: 0.85,
-      wings: "lava", coreGlow: 0xffe9b0, coreGlowO: 0.36, disc: 0xff8c2e
+      wings: "lava", coreGlow: 0xffe9b0, coreGlowO: 0.36
+    },
+    shuriken: {
+      label: "Wind Rasenshuriken", tex: "windHot",
+      glow: 0x8fe3ff, spin: 1.5, flicker: 0.04,
+      spark: [0xffffff, 0xdff4ff, 0x9fe0ff], sparkW: [0.4, 0.34, 0.26],
+      swirlColor: 0x9fe8ff, embers: 0, orbs: 0, smoke: 0, shellScale: 0.85,
+      wings: "wind", coreGlow: 0xffffff, coreGlowO: 0.5
     },
     dual: {
-      label: "Magnet + Lava Rasenshuriken (Dual)", tex: "dual",
-      glow: 0x7a86ff, spin: 1.5, flicker: 0.07,
-      spark: [0xbcd6ff, 0x4d8dff, 0xfff3c4, 0xff7b00], sparkW: [0.27, 0.23, 0.27, 0.23],
-      swirlColor: 0xb08cff, embers: 420, orbs: 5, smoke: 0.16, shellScale: 0.85,
-      wings: "dual", coreGlow: 0xdfe8ff, coreGlowO: 0.4, disc: 0xffffff
+      label: "Dual: Magnet in your left hand, Lava in your right", tex: "magnet",
+      glow: 0x7a86ff, spin: 1.5, flicker: 0.05,
+      spark: [0xdceaff, 0x6fa8ff, 0x2f6bff], sparkW: [0.38, 0.36, 0.26],
+      swirlColor: 0x4d8dff, embers: 0, orbs: 0, smoke: 0, shellScale: 0.85,
+      wings: null, coreGlow: 0x9fc2ff, coreGlowO: 0.26
     }
   };
   var STYLE_ORDER = ["classic", "shuriken", "magnetShuriken", "lavaShuriken", "dual"];
+  // In Dual mode each hand holds its own nature: slot 0 is the
+  // left hand, slot 1 is the right hand
+  var DUAL_SLOT_STYLES = ["magnetShuriken", "lavaShuriken"];
 
   function pickWeighted(colors, weights, r) {
     var acc = 0;
@@ -463,235 +445,303 @@
     magnet: magnetTexture(),
     lava: lavaTexture()
   };
-  // The Dual sphere: the Magnet surface on one half, the Lava
-  // surface on the other, the seam softened where the natures meet
-  textures.dual = (function () {
-    var c = makeCanvas(1024, 512), ctx = c.getContext("2d");
-    ctx.drawImage(textures.magnet.image, 0, 0, 512, 512, 0, 0, 512, 512);
-    ctx.drawImage(textures.lava.image, 512, 0, 512, 512, 512, 0, 512, 512);
-    for (var i = 0; i < 46; i++) {
-      blob(ctx, 1024, 512 + (Math.random() - 0.5) * 90, Math.random() * 512,
-           14 + Math.random() * 30, Math.random() < 0.5 ? "#2f7bff" : "#ff7b00", 0.25);
-    }
-    return new THREE.CanvasTexture(c);
-  })();
-
   var wingDiscs = {
     wind: wingDiscTexture("wind"),
     magnet: wingDiscTexture("magnet"),
-    lava: wingDiscTexture("lava"),
-    dual: wingDiscTexture("dual")
+    lava: wingDiscTexture("lava")
   };
 
-  var group = new THREE.Group();
-  group.visible = false;
-  scene.add(group);
-
-  var smoke = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: glowTex, color: 0xe9e5da, transparent: true, opacity: 0, depthWrite: false
-  }));
-  smoke.scale.set(5.8, 5.2, 1);
-  group.add(smoke);
-
-  var glow = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: glowTex, color: 0x4db2ff, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false
-  }));
-  glow.scale.set(3.3, 3.3, 1);
-  group.add(glow);
-
-  var sphereMat = new THREE.MeshBasicMaterial({ map: textures.wind, transparent: true, opacity: 0 });
-  var sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), sphereMat);
-  group.add(sphere);
-
-  // Hot core shining through the surface, drawn over the ball.
-  var coreGlowMat = new THREE.SpriteMaterial({
-    map: glowTex, color: 0xeaf7ff, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
-  });
-  var coreGlowSprite = new THREE.Sprite(coreGlowMat);
-  coreGlowSprite.scale.set(1.55, 1.55, 1);
-  coreGlowSprite.renderOrder = 5;
-  group.add(coreGlowSprite);
-
-  // Outer sparks, a thin shell of bright particles above the surface.
-  var SHELL_N = 3400;
-  var shellGeo = new THREE.BufferGeometry();
-  var shellPos = new Float32Array(SHELL_N * 3);
-  var shellCol = new Float32Array(SHELL_N * 3);
-  var shellTargetCol = new Float32Array(SHELL_N * 3);
-  var shellTheta = new Float32Array(SHELL_N);
-  var shellPhi = new Float32Array(SHELL_N);
-  var shellRad = new Float32Array(SHELL_N);
-  var shellSeed = new Float32Array(SHELL_N);
-  (function initShell() {
-    var golden = Math.PI * (3 - Math.sqrt(5));
-    for (var i = 0; i < SHELL_N; i++) {
-      var y = 1 - (i / (SHELL_N - 1)) * 2;
-      shellPhi[i] = Math.acos(Math.max(-1, Math.min(1, y)));
-      shellTheta[i] = golden * i;
-      shellRad[i] = 1.02 + Math.random() * 0.14;
-      shellSeed[i] = Math.random();
-    }
-  })();
-  shellGeo.setAttribute("position", new THREE.BufferAttribute(shellPos, 3));
-  shellGeo.setAttribute("color", new THREE.BufferAttribute(shellCol, 3));
-  var shellMat = new THREE.PointsMaterial({
-    size: 3.6, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  });
-  var shell = new THREE.Points(shellGeo, shellMat);
-  group.add(shell);
-
-  // Swirl disc of streaks around Rasengan styles (not the Shuriken).
-  var SWIRL_N = 650;
-  var swirlGeo = new THREE.BufferGeometry();
-  var swirlPos = new Float32Array(SWIRL_N * 3);
-  var swirlAng = new Float32Array(SWIRL_N);
-  var swirlRad = new Float32Array(SWIRL_N);
-  var swirlY = new Float32Array(SWIRL_N);
-  (function initSwirl() {
-    for (var i = 0; i < SWIRL_N; i++) {
-      swirlAng[i] = Math.random() * Math.PI * 2;
-      swirlRad[i] = 1.1 + Math.random() * 0.55;
-      swirlY[i] = (Math.random() - 0.5) * 0.22;
-    }
-  })();
-  swirlGeo.setAttribute("position", new THREE.BufferAttribute(swirlPos, 3));
-  var swirlMat = new THREE.PointsMaterial({
-    size: 7, map: glowTex, color: 0x7cc4ff, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  });
-  var swirl = new THREE.Points(swirlGeo, swirlMat);
-  group.add(swirl);
-
   // ============================================================
-  // The wing disc. Flat, dense, tiny particles, like the video:
-  // a full disc of fine grain with four tighter blade arms inside
-  // it. Colours are per particle and restyle with the mode.
+  // One complete Rasengan effect. Two are built, one per hand, so
+  // Dual mode can hold Magnet in one hand and Lava in the other.
   // ============================================================
-  var BLADE_N = 9000;
-  var bladeGeo = new THREE.BufferGeometry();
-  var bladePos = new Float32Array(BLADE_N * 3);
-  var bladeCol = new Float32Array(BLADE_N * 3);
-  var bladeT = new Float32Array(BLADE_N);    // 0 core .. 1 wing tip
-  var bladeSeed = new Float32Array(BLADE_N);
-  (function initBlades() {
-    for (var i = 0; i < BLADE_N; i++) {
-      var x, y, t;
-      var kind = Math.random();
-      if (i < 1200) {
-        var ra = Math.random() * Math.PI * 2;
-        var rr = 0.85 + Math.random() * 0.35;
-        x = Math.cos(ra) * rr; y = Math.sin(ra) * rr; t = 0.12;
-      } else if (kind < 0.16) {
-        // A whisper of blade structure only: few particles, spread
-        // wide, so no arm can be picked out at full spin
-        var b = i % 4;
-        var tt = Math.pow(Math.random(), 0.8);
-        var ang = b * Math.PI / 2 + tt * 0.5 + 0.5 * tt * tt * tt;
-        var rad = 0.5 + tt * 2.05;
-        var off = (Math.random() - 0.5) * 0.8 * (1 - tt * 0.3);
-        x = Math.cos(ang) * rad - Math.sin(ang) * off;
-        y = Math.sin(ang) * rad + Math.cos(ang) * off;
-        t = tt;
-      } else {
-        // Disc fill between the arms, thinned toward the rim so the
-        // edge fades soft like the video instead of ending hard
-        var fa = Math.random() * Math.PI * 2;
-        var fr = 0.5 + 2.05 * Math.pow(Math.random(), 0.55);
-        if (fr > 2.2 && Math.random() < 0.5) fr = 0.6 + Math.random() * 1.5;
-        x = Math.cos(fa) * fr; y = Math.sin(fa) * fr;
-        t = (fr - 0.5) / 2.05;
-      }
-      bladePos[i * 3] = x;
-      bladePos[i * 3 + 1] = y;
-      bladePos[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
-      bladeT[i] = Math.max(0, Math.min(1, t));
-      bladeSeed[i] = Math.random();
-    }
-  })();
-  bladeGeo.setAttribute("position", new THREE.BufferAttribute(bladePos, 3));
-  bladeGeo.setAttribute("color", new THREE.BufferAttribute(bladeCol, 3));
-  var bladeMat = new THREE.PointsMaterial({
-    size: 2.4, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  });
-  var bladeGroup = new THREE.Group();
-  var bladeDiscMat = new THREE.MeshBasicMaterial({
-    map: wingDiscs.wind, color: 0xffffff, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
-  });
-  var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(2.7, 40), bladeDiscMat);
-  bladeGroup.add(bladeDisc);
-  bladeGroup.add(new THREE.Points(bladeGeo, bladeMat));
-  bladeGroup.visible = false;
-  group.add(bladeGroup);
+  function buildEffect() {
+    var fx = {};
+    var group = new THREE.Group();
+    group.visible = false;
+    scene.add(group);
+    fx.group = group;
 
-  // Wind around the Rasenshuriken: fast thin streaks circling the
-  // disc and slow mist sprites drifting at the rim. In the reference
-  // the disc itself is smooth light; the wind is what moves around it.
-  var WIND_N = 260;
-  var windGeo = new THREE.BufferGeometry();
-  var windPos = new Float32Array(WIND_N * 2 * 3);
-  var windCol = new Float32Array(WIND_N * 2 * 3);
-  var windAng = new Float32Array(WIND_N);
-  var windRad = new Float32Array(WIND_N);
-  var windLen = new Float32Array(WIND_N);
-  var windSpd = new Float32Array(WIND_N);
-  (function initWind() {
-    for (var i = 0; i < WIND_N; i++) {
-      windAng[i] = Math.random() * Math.PI * 2;
-      windRad[i] = 1.6 + Math.pow(Math.random(), 1.2) * 1.6;
-      windLen[i] = 0.08 + Math.random() * 0.18;
-      windSpd[i] = 0.7 + Math.random() * 0.9;
-      // Each streak has its own brightness and a fading tail, so the
-      // set reads as irregular air, not drawn circles
-      var b = 0.25 + Math.random() * 0.55;
-      windCol[i * 6] = b; windCol[i * 6 + 1] = b; windCol[i * 6 + 2] = b;
-      windCol[i * 6 + 3] = b * 0.35; windCol[i * 6 + 4] = b * 0.35; windCol[i * 6 + 5] = b * 0.35;
-    }
-  })();
-  windGeo.setAttribute("position", new THREE.BufferAttribute(windPos, 3));
-  windGeo.setAttribute("color", new THREE.BufferAttribute(windCol, 3));
-  var windMat = new THREE.LineBasicMaterial({
-    color: 0x9fe8ff, vertexColors: true, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false
-  });
-  var windGroup = new THREE.Group();
-  windGroup.add(new THREE.LineSegments(windGeo, windMat));
-  var windMists = [];
-  for (var mi = 0; mi < 12; mi++) {
-    var mist = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: 0x8fe3ff, transparent: true, opacity: 0,
+    var smoke = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: 0xe9e5da, transparent: true, opacity: 0, depthWrite: false
+    }));
+    smoke.scale.set(5.8, 5.2, 1);
+    group.add(smoke);
+    fx.smoke = smoke;
+
+    var glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: 0x4db2ff, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    windGroup.add(mist);
-    windMists.push({
-      sprite: mist,
-      ang: Math.random() * Math.PI * 2,
-      rad: 1.9 + Math.random() * 1.2,
-      spd: 0.3 + Math.random() * 0.4,
-      scl: 1.6 + Math.random() * 1.4,
-      ph: Math.random() * Math.PI * 2,
-      base: 0.04 + Math.random() * 0.03
+    glow.scale.set(3.3, 3.3, 1);
+    group.add(glow);
+    fx.glow = glow;
+
+    var sphereMat = new THREE.MeshBasicMaterial({ map: textures.wind, transparent: true, opacity: 0 });
+    var sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), sphereMat);
+    group.add(sphere);
+    fx.sphere = sphere;
+    fx.sphereMat = sphereMat;
+
+    var coreGlowMat = new THREE.SpriteMaterial({
+      map: glowTex, color: 0xeaf7ff, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
     });
+    var coreGlowSprite = new THREE.Sprite(coreGlowMat);
+    coreGlowSprite.scale.set(1.55, 1.55, 1);
+    coreGlowSprite.renderOrder = 5;
+    group.add(coreGlowSprite);
+    fx.coreGlowSprite = coreGlowSprite;
+    fx.coreGlowMat = coreGlowMat;
+
+    // Outer sparks, a thin shell of bright particles above the surface
+    var SHELL_N = 3400;
+    fx.shellN = SHELL_N;
+    var shellGeo = new THREE.BufferGeometry();
+    var shellPos = new Float32Array(SHELL_N * 3);
+    var shellCol = new Float32Array(SHELL_N * 3);
+    var shellTargetCol = new Float32Array(SHELL_N * 3);
+    var shellTheta = new Float32Array(SHELL_N);
+    var shellPhi = new Float32Array(SHELL_N);
+    var shellRad = new Float32Array(SHELL_N);
+    var shellSeed = new Float32Array(SHELL_N);
+    (function initShell() {
+      var golden = Math.PI * (3 - Math.sqrt(5));
+      for (var i = 0; i < SHELL_N; i++) {
+        var y = 1 - (i / (SHELL_N - 1)) * 2;
+        shellPhi[i] = Math.acos(Math.max(-1, Math.min(1, y)));
+        shellTheta[i] = golden * i;
+        shellRad[i] = 1.02 + Math.random() * 0.14;
+        shellSeed[i] = Math.random();
+      }
+    })();
+    shellGeo.setAttribute("position", new THREE.BufferAttribute(shellPos, 3));
+    shellGeo.setAttribute("color", new THREE.BufferAttribute(shellCol, 3));
+    var shellMat = new THREE.PointsMaterial({
+      size: 3.6, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+    });
+    var shell = new THREE.Points(shellGeo, shellMat);
+    group.add(shell);
+    fx.shell = shell; fx.shellGeo = shellGeo; fx.shellMat = shellMat;
+    fx.shellPos = shellPos; fx.shellCol = shellCol; fx.shellTargetCol = shellTargetCol;
+    fx.shellTheta = shellTheta; fx.shellPhi = shellPhi; fx.shellRad = shellRad; fx.shellSeed = shellSeed;
+
+    // Swirl disc of streaks around Rasengan styles (not the Shuriken)
+    var SWIRL_N = 650;
+    fx.swirlN = SWIRL_N;
+    var swirlGeo = new THREE.BufferGeometry();
+    var swirlPos = new Float32Array(SWIRL_N * 3);
+    var swirlAng = new Float32Array(SWIRL_N);
+    var swirlRad = new Float32Array(SWIRL_N);
+    var swirlY = new Float32Array(SWIRL_N);
+    (function initSwirl() {
+      for (var i = 0; i < SWIRL_N; i++) {
+        swirlAng[i] = Math.random() * Math.PI * 2;
+        swirlRad[i] = 1.1 + Math.random() * 0.55;
+        swirlY[i] = (Math.random() - 0.5) * 0.22;
+      }
+    })();
+    swirlGeo.setAttribute("position", new THREE.BufferAttribute(swirlPos, 3));
+    var swirlMat = new THREE.PointsMaterial({
+      size: 7, map: glowTex, color: 0x7cc4ff, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+    });
+    var swirl = new THREE.Points(swirlGeo, swirlMat);
+    group.add(swirl);
+    fx.swirlGeo = swirlGeo; fx.swirlMat = swirlMat;
+    fx.swirlPos = swirlPos; fx.swirlAng = swirlAng; fx.swirlRad = swirlRad; fx.swirlY = swirlY;
+
+    // The wing disc: fine sparkles over a drawn cloud disc
+    var BLADE_N = 9000;
+    fx.bladeN = BLADE_N;
+    var bladeGeo = new THREE.BufferGeometry();
+    var bladePos = new Float32Array(BLADE_N * 3);
+    var bladeCol = new Float32Array(BLADE_N * 3);
+    var bladeT = new Float32Array(BLADE_N);
+    var bladeSeed = new Float32Array(BLADE_N);
+    (function initBlades() {
+      for (var i = 0; i < BLADE_N; i++) {
+        var x, y, t;
+        var kind = Math.random();
+        if (i < 1200) {
+          var ra = Math.random() * Math.PI * 2;
+          var rr = 0.85 + Math.random() * 0.35;
+          x = Math.cos(ra) * rr; y = Math.sin(ra) * rr; t = 0.12;
+        } else if (kind < 0.16) {
+          // A whisper of blade structure along the same bent spine
+          // the cloud blades follow
+          var b = i % 4;
+          var tt = Math.pow(Math.random(), 0.8);
+          var ang = b * Math.PI / 2 + tt * 0.5 + 0.5 * tt * tt * tt;
+          var rad = 0.5 + tt * 2.05;
+          var off = (Math.random() - 0.5) * 0.8 * (1 - tt * 0.3);
+          x = Math.cos(ang) * rad - Math.sin(ang) * off;
+          y = Math.sin(ang) * rad + Math.cos(ang) * off;
+          t = tt;
+        } else {
+          var fa = Math.random() * Math.PI * 2;
+          var fr = 0.5 + 2.05 * Math.pow(Math.random(), 0.55);
+          if (fr > 2.2 && Math.random() < 0.5) fr = 0.6 + Math.random() * 1.5;
+          x = Math.cos(fa) * fr; y = Math.sin(fa) * fr;
+          t = (fr - 0.5) / 2.05;
+        }
+        bladePos[i * 3] = x;
+        bladePos[i * 3 + 1] = y;
+        bladePos[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
+        bladeT[i] = Math.max(0, Math.min(1, t));
+        bladeSeed[i] = Math.random();
+      }
+    })();
+    bladeGeo.setAttribute("position", new THREE.BufferAttribute(bladePos, 3));
+    bladeGeo.setAttribute("color", new THREE.BufferAttribute(bladeCol, 3));
+    var bladeMat = new THREE.PointsMaterial({
+      size: 2.4, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+    });
+    var bladeGroup = new THREE.Group();
+    var bladeDiscMat = new THREE.MeshBasicMaterial({
+      map: wingDiscs.wind, color: 0xffffff, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+    });
+    var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(2.7, 40), bladeDiscMat);
+    bladeGroup.add(bladeDisc);
+    bladeGroup.add(new THREE.Points(bladeGeo, bladeMat));
+    bladeGroup.visible = false;
+    group.add(bladeGroup);
+    fx.bladeGroup = bladeGroup; fx.bladeGeo = bladeGeo; fx.bladeMat = bladeMat;
+    fx.bladeDiscMat = bladeDiscMat; fx.bladeCol = bladeCol; fx.bladeT = bladeT; fx.bladeSeed = bladeSeed;
+
+    // Wind around the Rasenshuriken: fast thin streaks circling the
+    // disc and slow mist sprites drifting at the rim, turning the
+    // same way the disc turns
+    var WIND_N = 260;
+    fx.windN = WIND_N;
+    var windGeo = new THREE.BufferGeometry();
+    var windPos = new Float32Array(WIND_N * 2 * 3);
+    var windCol = new Float32Array(WIND_N * 2 * 3);
+    var windAng = new Float32Array(WIND_N);
+    var windRad = new Float32Array(WIND_N);
+    var windLen = new Float32Array(WIND_N);
+    var windSpd = new Float32Array(WIND_N);
+    (function initWind() {
+      for (var i = 0; i < WIND_N; i++) {
+        windAng[i] = Math.random() * Math.PI * 2;
+        windRad[i] = 1.6 + Math.pow(Math.random(), 1.2) * 1.6;
+        windLen[i] = 0.08 + Math.random() * 0.18;
+        windSpd[i] = 0.7 + Math.random() * 0.9;
+        var b = 0.25 + Math.random() * 0.55;
+        windCol[i * 6] = b; windCol[i * 6 + 1] = b; windCol[i * 6 + 2] = b;
+        windCol[i * 6 + 3] = b * 0.35; windCol[i * 6 + 4] = b * 0.35; windCol[i * 6 + 5] = b * 0.35;
+      }
+    })();
+    windGeo.setAttribute("position", new THREE.BufferAttribute(windPos, 3));
+    windGeo.setAttribute("color", new THREE.BufferAttribute(windCol, 3));
+    var windMat = new THREE.LineBasicMaterial({
+      color: 0x9fe8ff, vertexColors: true, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    var windGroup = new THREE.Group();
+    windGroup.add(new THREE.LineSegments(windGeo, windMat));
+    var windMists = [];
+    for (var mi = 0; mi < 12; mi++) {
+      var mist = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: 0x8fe3ff, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      }));
+      windGroup.add(mist);
+      windMists.push({
+        sprite: mist,
+        ang: Math.random() * Math.PI * 2,
+        rad: 1.9 + Math.random() * 1.2,
+        spd: 0.3 + Math.random() * 0.4,
+        scl: 1.6 + Math.random() * 1.4,
+        ph: Math.random() * Math.PI * 2,
+        base: 0.04 + Math.random() * 0.03
+      });
+    }
+    windGroup.visible = false;
+    group.add(windGroup);
+    fx.windGroup = windGroup; fx.windGeo = windGeo; fx.windMat = windMat; fx.windMists = windMists;
+    fx.windPos = windPos; fx.windAng = windAng; fx.windRad = windRad; fx.windLen = windLen; fx.windSpd = windSpd;
+
+    // Embers (Lava styles)
+    var EMBER_MAX = 420;
+    fx.emberMax = EMBER_MAX;
+    var emberGeo = new THREE.BufferGeometry();
+    var emberPos = new Float32Array(EMBER_MAX * 3);
+    var emberVel = new Float32Array(EMBER_MAX * 3);
+    var emberLife = new Float32Array(EMBER_MAX);
+    emberGeo.setAttribute("position", new THREE.BufferAttribute(emberPos, 3));
+    var emberMat = new THREE.PointsMaterial({
+      size: 6, map: glowTex, color: 0xffa63f, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+    });
+    var embers = new THREE.Points(emberGeo, emberMat);
+    embers.visible = false;
+    group.add(embers);
+    fx.embers = embers; fx.emberGeo = emberGeo; fx.emberMat = emberMat;
+    fx.emberPos = emberPos; fx.emberVel = emberVel; fx.emberLife = emberLife;
+
+    // Orbiting black orbs (Magnet styles), on a tilted ring around
+    // the core with the violet rim from the reference, so they float
+    // around the sphere instead of sitting on it
+    var orbGroup = new THREE.Group();
+    var orbMeshes = [];
+    for (var oi = 0; oi < 5; oi++) {
+      var orbMat = new THREE.MeshBasicMaterial({ color: 0x0a0d18, transparent: true, opacity: 0 });
+      var orb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 20, 20), orbMat);
+      var rim = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: 0x8a5cff, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      }));
+      rim.scale.set(0.3, 0.3, 1);
+      orb.add(rim);
+      orbGroup.add(orb);
+      orbMeshes.push(orb);
+    }
+    orbGroup.visible = false;
+    group.add(orbGroup);
+    fx.orbGroup = orbGroup; fx.orbMeshes = orbMeshes;
+
+    // Per-hand state
+    fx.target = { x: 0, y: 0, radius: 84, has: false, fist: false };
+    fx.lastSeen = 0;
+    fx.pos = { x: 0, y: 0, radius: 84 };
+    fx.spinAngle = 0;
+    fx.charge = 0;
+    fx.wasFist = false;
+    fx.pulseT = -1;
+    fx.presence = 0;
+    fx.colorBlend = 1;
+    fx.bladeLevel = 0;
+    fx.smokeLevel = 0;
+    fx.bladeOpacityBase = 0.55;
+    fx.discOpacityBase = 0.42;
+    fx.windAngle = 0;
+    fx.styleName = "classic";
+    return fx;
   }
-  windGroup.visible = false;
-  group.add(windGroup);
-  var windAngle = 0;
+
+  function respawnEmber(fx, i, radius) {
+    var th = Math.random() * Math.PI * 2;
+    var ph = Math.acos(2 * Math.random() - 1);
+    var sp = Math.sin(ph);
+    fx.emberPos[i * 3] = Math.cos(th) * sp * radius;
+    fx.emberPos[i * 3 + 1] = Math.cos(ph) * radius;
+    fx.emberPos[i * 3 + 2] = Math.sin(th) * sp * radius;
+    fx.emberVel[i * 3] = fx.emberPos[i * 3] * 0.35;
+    fx.emberVel[i * 3 + 1] = radius * (0.55 + Math.random() * 0.7);
+    fx.emberVel[i * 3 + 2] = fx.emberPos[i * 3 + 2] * 0.35;
+    fx.emberLife[i] = 0.7 + Math.random() * 0.9;
+  }
 
   var _cA = new THREE.Color(), _cB = new THREE.Color(), _cOut = new THREE.Color();
-  function bladeColors(mode) {
-    for (var i = 0; i < BLADE_N; i++) {
-      var t = bladeT[i], s = bladeSeed[i];
+  function bladeColors(fx, mode) {
+    for (var i = 0; i < fx.bladeN; i++) {
+      var t = fx.bladeT[i], s = fx.bladeSeed[i];
       if (mode === "lava") {
         if (t < 0.5) _cOut.lerpColors(_cA.setHex(0xfff3c4), _cB.setHex(0xff9a1f), t * 2);
-        else _cOut.lerpColors(_cA.setHex(0xff9a1f), _cB.setHex(0xc22e00), (t - 0.5) * 2);
-      } else if (mode === "dual") {
-        // Blue half, flame half, split by the particle's own side
-        if (bladePos[i * 3] < 0) _cOut.lerpColors(_cA.setHex(0xbcd6ff), _cB.setHex(0x4d8dff), t);
-        else if (t < 0.5) _cOut.lerpColors(_cA.setHex(0xfff3c4), _cB.setHex(0xff9a1f), t * 2);
         else _cOut.lerpColors(_cA.setHex(0xff9a1f), _cB.setHex(0xc22e00), (t - 0.5) * 2);
       } else if (mode === "magnet") {
         _cOut.lerpColors(_cA.setHex(0xbcd6ff), _cB.setHex(0x4d8dff), t);
@@ -699,104 +749,62 @@
         _cOut.lerpColors(_cA.setHex(0xffffff), _cB.setHex(0x8fd8ff), t);
       }
       _cOut.offsetHSL(0, 0, (s - 0.5) * 0.05);
-      bladeCol[i * 3] = _cOut.r; bladeCol[i * 3 + 1] = _cOut.g; bladeCol[i * 3 + 2] = _cOut.b;
+      fx.bladeCol[i * 3] = _cOut.r; fx.bladeCol[i * 3 + 1] = _cOut.g; fx.bladeCol[i * 3 + 2] = _cOut.b;
     }
-    bladeGeo.attributes.color.needsUpdate = true;
+    fx.bladeGeo.attributes.color.needsUpdate = true;
   }
 
-  // Embers (Lava styles).
-  var EMBER_MAX = 420;
-  var emberGeo = new THREE.BufferGeometry();
-  var emberPos = new Float32Array(EMBER_MAX * 3);
-  var emberVel = new Float32Array(EMBER_MAX * 3);
-  var emberLife = new Float32Array(EMBER_MAX);
-  emberGeo.setAttribute("position", new THREE.BufferAttribute(emberPos, 3));
-  var emberMat = new THREE.PointsMaterial({
-    size: 6, map: glowTex, color: 0xffa63f, transparent: true, opacity: 0,
-    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
-  });
-  var embers = new THREE.Points(emberGeo, emberMat);
-  embers.visible = false;
-  group.add(embers);
-
-  function respawnEmber(i, radius) {
-    var th = Math.random() * Math.PI * 2;
-    var ph = Math.acos(2 * Math.random() - 1);
-    var sp = Math.sin(ph);
-    emberPos[i * 3] = Math.cos(th) * sp * radius;
-    emberPos[i * 3 + 1] = Math.cos(ph) * radius;
-    emberPos[i * 3 + 2] = Math.sin(th) * sp * radius;
-    emberVel[i * 3] = emberPos[i * 3] * 0.35;
-    emberVel[i * 3 + 1] = radius * (0.55 + Math.random() * 0.7);
-    emberVel[i * 3 + 2] = emberPos[i * 3 + 2] * 0.35;
-    emberLife[i] = 0.7 + Math.random() * 0.9;
-  }
-
-  // Orbiting black orbs (Magnet styles), small and close.
-  var orbGroup = new THREE.Group();
-  var orbMeshes = [];
-  for (var oi = 0; oi < 5; oi++) {
-    var orbMat = new THREE.MeshBasicMaterial({ color: 0x0a0d18, transparent: true, opacity: 0 });
-    var orb = new THREE.Mesh(new THREE.SphereGeometry(0.065, 20, 20), orbMat);
-    var rim = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: 0x8a5cff, transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false
-    }));
-    rim.scale.set(0.3, 0.3, 1);
-    orb.add(rim);
-    orbGroup.add(orb);
-    orbMeshes.push(orb);
-  }
-  orbGroup.visible = false;
-  group.add(orbGroup);
-
-  // ---------- Style state ----------
-  var currentStyle = "classic";
-  var colorBlend = 1;
-  var bladeLevel = 0;
-  var smokeLevel = 0;
-  var bladeOpacityBase = 0.9;
-  var discOpacityBase = 0.3;
-
-  function applyStyle(name) {
+  function applyStyle(fx, name) {
     var st = STYLES[name];
-    sphereMat.map = textures[st.tex];
-    sphereMat.needsUpdate = true;
-    glow.material.color.setHex(st.glow);
-    swirlMat.color.setHex(st.swirlColor);
-    coreGlowMat.color.setHex(st.coreGlow);
+    fx.styleName = name;
+    fx.sphereMat.map = textures[st.tex];
+    fx.sphereMat.needsUpdate = true;
+    fx.glow.material.color.setHex(st.glow);
+    fx.swirlMat.color.setHex(st.swirlColor);
+    fx.coreGlowMat.color.setHex(st.coreGlow);
     var col = new THREE.Color();
-    for (var i = 0; i < SHELL_N; i++) {
-      col.setHex(pickWeighted(st.spark, st.sparkW, shellSeed[i]));
-      shellTargetCol[i * 3] = col.r; shellTargetCol[i * 3 + 1] = col.g; shellTargetCol[i * 3 + 2] = col.b;
-      if (colorBlend >= 1) {
-        shellCol[i * 3] = col.r; shellCol[i * 3 + 1] = col.g; shellCol[i * 3 + 2] = col.b;
+    for (var i = 0; i < fx.shellN; i++) {
+      col.setHex(pickWeighted(st.spark, st.sparkW, fx.shellSeed[i]));
+      fx.shellTargetCol[i * 3] = col.r; fx.shellTargetCol[i * 3 + 1] = col.g; fx.shellTargetCol[i * 3 + 2] = col.b;
+      if (fx.colorBlend >= 1) {
+        fx.shellCol[i * 3] = col.r; fx.shellCol[i * 3 + 1] = col.g; fx.shellCol[i * 3 + 2] = col.b;
       }
     }
-    shellGeo.attributes.color.needsUpdate = true;
+    fx.shellGeo.attributes.color.needsUpdate = true;
     if (st.wings) {
-      bladeColors(st.wings);
-      bladeDiscMat.map = wingDiscs[st.wings];
-      bladeDiscMat.color.setHex(0xffffff);
-      bladeDiscMat.blending = st.wings === "lava" ? THREE.AdditiveBlending : THREE.NormalBlending;
-      bladeDiscMat.needsUpdate = true;
-      discOpacityBase = st.wings === "lava" ? 0.5 : (st.wings === "magnet" ? 0.9 : 0.95);
-      bladeOpacityBase = 0.55;
-      windMat.color.setHex(st.swirlColor);
-      for (var wm = 0; wm < windMists.length; wm++) windMists[wm].sprite.material.color.setHex(st.glow);
+      bladeColors(fx, st.wings);
+      fx.bladeDiscMat.map = wingDiscs[st.wings];
+      fx.bladeDiscMat.color.setHex(0xffffff);
+      fx.bladeDiscMat.blending = st.wings === "lava" ? THREE.AdditiveBlending : THREE.NormalBlending;
+      fx.bladeDiscMat.needsUpdate = true;
+      fx.discOpacityBase = st.wings === "lava" ? 0.5 : (st.wings === "magnet" ? 0.9 : 0.95);
+      fx.bladeOpacityBase = 0.55;
+      fx.windMat.color.setHex(st.swirlColor);
+      for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
-    embers.visible = st.embers > 0;
-    if (embers.visible) for (var e = 0; e < EMBER_MAX; e++) respawnEmber(e, 1.05);
-    orbGroup.visible = st.orbs > 0;
+    fx.embers.visible = st.embers > 0;
+    if (fx.embers.visible) for (var e = 0; e < fx.emberMax; e++) respawnEmber(fx, e, 1.05);
+    fx.orbGroup.visible = st.orbs > 0;
+  }
+
+  var fxList = [buildEffect(), buildEffect()];
+
+  // ---------- Style selection ----------
+  var currentStyle = "classic";
+
+  function styleForSlot(slot) {
+    if (currentStyle === "dual") return DUAL_SLOT_STYLES[slot];
+    return currentStyle;
   }
 
   var buttons = Array.prototype.slice.call(document.querySelectorAll(".style-btn"));
   function setStyle(name) {
     if (!STYLES[name]) return;
-    if (name === currentStyle && colorBlend >= 1) return;
     currentStyle = name;
-    colorBlend = 0;
-    applyStyle(name);
+    for (var s = 0; s < fxList.length; s++) {
+      fxList[s].colorBlend = 0;
+      applyStyle(fxList[s], styleForSlot(s));
+    }
     buttons.forEach(function (b) { b.classList.toggle("active", b.getAttribute("data-style") === name); });
     setStatus(STYLES[name].label + ". Fist to charge, open hand to release.");
   }
@@ -807,37 +815,46 @@
     var idx = parseInt(ev.key, 10);
     if (idx >= 1 && idx <= STYLE_ORDER.length) setStyle(STYLE_ORDER[idx - 1]);
   });
-  applyStyle("classic");
+  fxList.forEach(function (fx) { applyStyle(fx, "classic"); });
 
-  // ---------- Hand tracking ----------
-  var target = { x: 0, y: 0, radius: 84, has: false, fist: false };
-  var lastHandAt = 0;
-
+  // ---------- Hand tracking, both hands ----------
   function dist(a, b) {
     var dx = a.x - b.x, dy = a.y - b.y;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  function onResults(results) {
-    var lm = results.multiHandLandmarks && results.multiHandLandmarks[0];
-    if (!lm) { target.has = false; return; }
-    target.has = true;
-    lastHandAt = performance.now();
-
+  function readHand(fx, lm, now) {
+    fx.target.has = true;
+    fx.lastSeen = now;
     var cx = (lm[0].x + lm[5].x + lm[17].x) / 3;
     var cy = (lm[0].y + lm[5].y + lm[17].y) / 3;
     cx += (lm[9].x - lm[0].x) * 0.35;
     cy += (lm[9].y - lm[0].y) * 0.35;
-
     var palmW = dist(lm[5], lm[17]);
     var w = screenToWorld(1 - cx, cy);
-    target.x = w.x; target.y = w.y;
-    target.radius = Math.max(40, Math.min(150, palmW * viewW * 1.15));
-
+    fx.target.x = w.x; fx.target.y = w.y;
+    fx.target.radius = Math.max(40, Math.min(150, palmW * viewW * 1.15));
     var tips = [8, 12, 16, 20];
     var sum = 0;
     for (var i = 0; i < tips.length; i++) sum += dist(lm[tips[i]], lm[0]);
-    target.fist = (sum / tips.length) < palmW * 1.55;
+    fx.target.fist = (sum / tips.length) < palmW * 1.55;
+  }
+
+  function onResults(results) {
+    var now = performance.now();
+    var all = results.multiHandLandmarks || [];
+    var seen = {};
+    for (var i = 0; i < all.length && i < 2; i++) {
+      var label = null;
+      if (results.multiHandedness && results.multiHandedness[i]) label = results.multiHandedness[i].label;
+      var slot = label === "Left" ? 0 : label === "Right" ? 1 : (seen[0] ? 1 : 0);
+      if (seen[slot]) slot = 1 - slot;
+      seen[slot] = true;
+      readHand(fxList[slot], all[i], now);
+    }
+    for (var s = 0; s < fxList.length; s++) {
+      if (!seen[s]) fxList[s].target.has = false;
+    }
   }
 
   var video = document.getElementById("camera");
@@ -849,7 +866,7 @@
       }
     });
     hands.setOptions({
-      maxNumHands: 1, modelComplexity: 1,
+      maxNumHands: 2, modelComplexity: 1,
       minDetectionConfidence: 0.6, minTrackingConfidence: 0.5
     });
     hands.onResults(onResults);
@@ -870,171 +887,170 @@
     if (!cameraStarted) setStatus("Show your open palm to the camera.");
   }, 6000);
 
-  // ---------- Animation ----------
-  var pos = { x: 0, y: 0, radius: 84 };
-  var spinAngle = 0;
-  var charge = 0;
-  var wasFist = false;
-  var pulseT = -1;
-  var presence = 0;
-  var handLive = false;
-  var lastT = performance.now();
+  // ---------- Per-hand animation ----------
+  function updateEffect(fx, dt, now) {
+    var st = STYLES[fx.styleName];
+    var live = fx.target.has && now - fx.lastSeen < 1200;
+    fx.presence += ((live ? 1 : 0) - fx.presence) * Math.min(1, dt * (live ? 7 : 5));
+    if (fx.presence < 0.02 && !live) { fx.group.visible = false; return false; }
+    fx.group.visible = true;
 
+    if (live) {
+      var k = 1 - Math.pow(0.0001, dt);
+      fx.pos.x += (fx.target.x - fx.pos.x) * k;
+      fx.pos.y += (fx.target.y - fx.pos.y) * k;
+      fx.pos.radius += (fx.target.radius - fx.pos.radius) * k;
+    }
+
+    var chargeTarget = (live && fx.target.fist) ? 1 : 0;
+    fx.charge += (chargeTarget - fx.charge) * Math.min(1, dt * 5);
+
+    if (fx.wasFist && live && !fx.target.fist && fx.charge > 0.45 && fx.pulseT < 0) fx.pulseT = 0;
+    fx.wasFist = live && fx.target.fist;
+    var pulseScale = 1;
+    if (fx.pulseT >= 0) {
+      fx.pulseT += dt;
+      var pt = fx.pulseT / 0.9;
+      if (pt >= 1) fx.pulseT = -1;
+      else pulseScale = 1 + Math.sin(pt * Math.PI) * (st.wings ? 1.9 : 0.55);
+    }
+
+    var R = fx.pos.radius * (1 - fx.charge * 0.24) * (0.72 + 0.28 * fx.presence);
+    var flick = 1 + (Math.random() - 0.5) * st.flicker * (1 + fx.charge);
+    fx.group.position.set(fx.pos.x, fx.pos.y + Math.sin(now * 0.0016) * 3.5, 0);
+    fx.group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
+
+    fx.sphereMat.opacity = fx.presence;
+    fx.glow.material.opacity = (0.5 + fx.charge * 0.3 + (fx.pulseT >= 0 ? 0.25 : 0)) * fx.presence;
+    fx.shellMat.opacity = 0.65 * fx.presence;
+    fx.swirlMat.opacity = (st.wings ? 0.05 : 0.32 + fx.charge * 0.25) * fx.presence;
+    fx.emberMat.opacity = 0.9 * fx.presence;
+    fx.coreGlowMat.opacity = st.coreGlowO * (1 + fx.charge * 0.5) * fx.presence;
+
+    fx.sphere.rotation.y += dt * st.spin * (1 + fx.charge * 1.7);
+    fx.sphere.rotation.x = Math.sin(now * 0.0004) * 0.14;
+
+    fx.spinAngle += dt * 2.4 * (1 + fx.charge * 1.4);
+    for (var i = 0; i < fx.shellN; i++) {
+      var phi = fx.shellPhi[i];
+      var latSpeed = 0.45 + Math.sin(phi) * 0.9;
+      var th = fx.shellTheta[i] + fx.spinAngle * latSpeed + fx.shellSeed[i] * 0.6;
+      var sp = Math.sin(phi), r = fx.shellRad[i];
+      fx.shellPos[i * 3] = Math.cos(th) * sp * r;
+      fx.shellPos[i * 3 + 1] = Math.cos(phi) * r;
+      fx.shellPos[i * 3 + 2] = Math.sin(th) * sp * r;
+    }
+    fx.shellGeo.attributes.position.needsUpdate = true;
+
+    if (fx.colorBlend < 1) {
+      fx.colorBlend = Math.min(1, fx.colorBlend + dt * 2.2);
+      for (var j = 0; j < fx.shellN * 3; j++) {
+        fx.shellCol[j] += (fx.shellTargetCol[j] - fx.shellCol[j]) * Math.min(1, dt * 7);
+      }
+      fx.shellGeo.attributes.color.needsUpdate = true;
+    }
+
+    var shTarget = st.shellScale || 1;
+    var shNow = fx.shell.scale.x + (shTarget - fx.shell.scale.x) * Math.min(1, dt * 5);
+    fx.shell.scale.set(shNow, shNow, shNow);
+    fx.sphere.scale.set(shNow, shNow, shNow);
+    fx.coreGlowSprite.scale.set(1.55 * shNow, 1.55 * shNow, 1);
+
+    for (var s = 0; s < fx.swirlN; s++) {
+      var a = fx.swirlAng[s] + fx.spinAngle * 1.9;
+      fx.swirlPos[s * 3] = Math.cos(a) * fx.swirlRad[s];
+      fx.swirlPos[s * 3 + 1] = fx.swirlY[s] * (1 - fx.charge * 0.4);
+      fx.swirlPos[s * 3 + 2] = Math.sin(a) * fx.swirlRad[s];
+    }
+    fx.swirlGeo.attributes.position.needsUpdate = true;
+
+    // Wing disc: spins, faster while charged and on release
+    fx.bladeLevel += ((st.wings ? 1 : 0) - fx.bladeLevel) * Math.min(1, dt * 6);
+    fx.bladeGroup.visible = fx.bladeLevel > 0.02;
+    if (fx.bladeGroup.visible) {
+      fx.bladeMat.opacity = fx.bladeOpacityBase * fx.bladeLevel * fx.presence;
+      fx.bladeDiscMat.opacity = fx.discOpacityBase * fx.bladeLevel * fx.presence;
+      fx.bladeGroup.rotation.z -= dt * (5.5 + fx.charge * 5) * (fx.pulseT >= 0 ? 1.6 : 1);
+    }
+
+    // Wind streaks shear around the disc, mist drifts at the rim,
+    // all turning the same way as the disc
+    fx.windGroup.visible = fx.bladeLevel > 0.02;
+    if (fx.windGroup.visible) {
+      fx.windAngle -= dt * (8 + fx.charge * 6) * (fx.pulseT >= 0 ? 1.5 : 1);
+      fx.windMat.opacity = 0.38 * fx.bladeLevel * fx.presence;
+      for (var w = 0; w < fx.windN; w++) {
+        var wa = fx.windAng[w] + fx.windAngle * fx.windSpd[w];
+        var wr = fx.windRad[w];
+        var wz = Math.sin(fx.windAng[w] * 3) * 0.12;
+        fx.windPos[w * 6] = Math.cos(wa) * wr;
+        fx.windPos[w * 6 + 1] = Math.sin(wa) * wr;
+        fx.windPos[w * 6 + 2] = wz;
+        fx.windPos[w * 6 + 3] = Math.cos(wa + fx.windLen[w]) * wr * 1.05;
+        fx.windPos[w * 6 + 4] = Math.sin(wa + fx.windLen[w]) * wr * 1.05;
+        fx.windPos[w * 6 + 5] = wz * 0.6;
+      }
+      fx.windGeo.attributes.position.needsUpdate = true;
+      for (var m = 0; m < fx.windMists.length; m++) {
+        var mm = fx.windMists[m];
+        mm.ang -= dt * mm.spd * (1 + fx.charge);
+        mm.sprite.position.set(Math.cos(mm.ang) * mm.rad, Math.sin(mm.ang) * mm.rad, Math.sin(mm.ph) * 0.3);
+        var msc = mm.scl * (1 + Math.sin(now * 0.001 + mm.ph) * 0.15);
+        mm.sprite.scale.set(msc, msc * 0.8, 1);
+        mm.sprite.material.opacity = mm.base * fx.bladeLevel * fx.presence;
+      }
+    }
+
+    fx.smokeLevel += ((st.smoke || 0) - fx.smokeLevel) * Math.min(1, dt * 3);
+    fx.smoke.material.opacity = fx.smokeLevel * fx.presence;
+    var ss = 5.8 + Math.sin(now * 0.0011) * 0.35;
+    fx.smoke.scale.set(ss, ss * 0.9, 1);
+    fx.smoke.position.x = Math.sin(now * 0.0006) * 0.18;
+
+    if (fx.embers.visible) {
+      for (var e2 = 0; e2 < fx.emberMax; e2++) {
+        fx.emberLife[e2] -= dt;
+        if (fx.emberLife[e2] <= 0) { respawnEmber(fx, e2, 1.05); continue; }
+        fx.emberPos[e2 * 3] += fx.emberVel[e2 * 3] * dt * (0.4 + fx.charge * 0.5);
+        fx.emberPos[e2 * 3 + 1] += fx.emberVel[e2 * 3 + 1] * dt * (0.4 + fx.charge * 0.5);
+        fx.emberPos[e2 * 3 + 2] += fx.emberVel[e2 * 3 + 2] * dt * (0.4 + fx.charge * 0.5);
+        fx.emberVel[e2 * 3 + 1] -= dt * 0.55;
+      }
+      fx.emberGeo.attributes.position.needsUpdate = true;
+    }
+
+    if (fx.orbGroup.visible) {
+      for (var o = 0; o < fx.orbMeshes.length; o++) {
+        var oa = fx.spinAngle * 0.6 + (o / fx.orbMeshes.length) * Math.PI * 2;
+        // Tilted ring: the orbs swing above, below and behind the
+        // core instead of crossing its face
+        fx.orbMeshes[o].position.set(Math.cos(oa) * 1.25, Math.sin(oa) * 0.62, Math.sin(oa) * 1.05);
+        fx.orbMeshes[o].material.opacity = fx.presence;
+        fx.orbMeshes[o].children[0].material.opacity = 0.45 * fx.presence;
+      }
+    }
+
+    var gs = 3.3 + fx.charge * 0.7 + Math.sin(now * 0.004) * 0.1;
+    fx.glow.scale.set(gs, gs, 1);
+    return live;
+  }
+
+  var lastT = performance.now();
   function animate() {
     requestAnimationFrame(animate);
     var now = performance.now();
     var dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
-    var st = STYLES[currentStyle];
-
-    var live = target.has && now - lastHandAt < 1200;
-    if (live !== handLive) {
-      handLive = live;
-      if (live) setStatus(st.label + ". Fist to charge, open hand to release.");
-      else setStatus("No palm. The Rasengan is gone. Show your open palm to bring it back.");
+    var anyLive = false;
+    for (var i = 0; i < fxList.length; i++) {
+      if (updateEffect(fxList[i], dt, now)) anyLive = true;
     }
-    presence += ((live ? 1 : 0) - presence) * Math.min(1, dt * (live ? 7 : 5));
-    if (presence < 0.02 && !live) { group.visible = false; renderer.render(scene, camera); return; }
-    group.visible = true;
-
-    if (live) {
-      var k = 1 - Math.pow(0.0001, dt);
-      pos.x += (target.x - pos.x) * k;
-      pos.y += (target.y - pos.y) * k;
-      pos.radius += (target.radius - pos.radius) * k;
+    if (anyLive) {
+      if (currentStyle === "dual") setStatus("Dual. Left hand Magnet, right hand Lava. Fist either hand to charge it.");
+      else setStatus(STYLES[currentStyle].label + ". Fist to charge, open hand to release.");
+    } else if (cameraStarted) {
+      setStatus("No palm. The Rasengan is gone. Show your open palm to bring it back.");
     }
-
-    var chargeTarget = (live && target.fist) ? 1 : 0;
-    charge += (chargeTarget - charge) * Math.min(1, dt * 5);
-
-    if (wasFist && live && !target.fist && charge > 0.45 && pulseT < 0) pulseT = 0;
-    wasFist = live && target.fist;
-    var pulseScale = 1;
-    if (pulseT >= 0) {
-      pulseT += dt;
-      var pt = pulseT / 0.9;
-      if (pt >= 1) pulseT = -1;
-      else pulseScale = 1 + Math.sin(pt * Math.PI) * (st.wings ? 1.9 : 0.55);
-    }
-
-    var R = pos.radius * (1 - charge * 0.24) * (0.72 + 0.28 * presence);
-    var flick = 1 + (Math.random() - 0.5) * st.flicker * (1 + charge);
-    group.position.set(pos.x, pos.y + Math.sin(now * 0.0016) * 3.5, 0);
-    group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
-
-    sphereMat.opacity = presence;
-    glow.material.opacity = (0.5 + charge * 0.3 + (pulseT >= 0 ? 0.25 : 0)) * presence;
-    shellMat.opacity = 0.65 * presence;
-    swirlMat.opacity = (st.wings ? 0.05 : 0.32 + charge * 0.25) * presence;
-    emberMat.opacity = 0.9 * presence;
-    coreGlowMat.opacity = st.coreGlowO * (1 + charge * 0.5) * presence;
-
-    sphere.rotation.y += dt * st.spin * (1 + charge * 1.7);
-    sphere.rotation.x = Math.sin(now * 0.0004) * 0.14;
-
-    spinAngle += dt * 2.4 * (1 + charge * 1.4);
-    for (var i = 0; i < SHELL_N; i++) {
-      var phi = shellPhi[i];
-      var latSpeed = 0.45 + Math.sin(phi) * 0.9;
-      var th = shellTheta[i] + spinAngle * latSpeed + shellSeed[i] * 0.6;
-      var sp = Math.sin(phi), r = shellRad[i];
-      shellPos[i * 3] = Math.cos(th) * sp * r;
-      shellPos[i * 3 + 1] = Math.cos(phi) * r;
-      shellPos[i * 3 + 2] = Math.sin(th) * sp * r;
-    }
-    shellGeo.attributes.position.needsUpdate = true;
-
-    if (colorBlend < 1) {
-      colorBlend = Math.min(1, colorBlend + dt * 2.2);
-      for (var j = 0; j < SHELL_N * 3; j++) {
-        shellCol[j] += (shellTargetCol[j] - shellCol[j]) * Math.min(1, dt * 7);
-      }
-      shellGeo.attributes.color.needsUpdate = true;
-    }
-
-    var shTarget = st.shellScale || 1;
-    var shNow = shell.scale.x + (shTarget - shell.scale.x) * Math.min(1, dt * 5);
-    shell.scale.set(shNow, shNow, shNow);
-    sphere.scale.set(shNow, shNow, shNow);
-    coreGlowSprite.scale.set(1.55 * shNow, 1.55 * shNow, 1);
-
-    for (var s = 0; s < SWIRL_N; s++) {
-      var a = swirlAng[s] + spinAngle * 1.9;
-      swirlPos[s * 3] = Math.cos(a) * swirlRad[s];
-      swirlPos[s * 3 + 1] = swirlY[s] * (1 - charge * 0.4);
-      swirlPos[s * 3 + 2] = Math.sin(a) * swirlRad[s];
-    }
-    swirlGeo.attributes.position.needsUpdate = true;
-
-    // Wing disc: spins fast, faster while charged and on release.
-    bladeLevel += ((st.wings ? 1 : 0) - bladeLevel) * Math.min(1, dt * 6);
-    bladeGroup.visible = bladeLevel > 0.02;
-    if (bladeGroup.visible) {
-      bladeMat.opacity = bladeOpacityBase * bladeLevel * presence;
-      bladeDiscMat.opacity = discOpacityBase * bladeLevel * presence;
-      bladeGroup.rotation.z -= dt * (5.5 + charge * 5) * (pulseT >= 0 ? 1.6 : 1);
-    }
-
-    // Wind streaks shear around the disc at their own speeds, mist
-    // drifts slower at the rim.
-    windGroup.visible = bladeLevel > 0.02;
-    if (windGroup.visible) {
-      windAngle -= dt * (8 + charge * 6) * (pulseT >= 0 ? 1.5 : 1);
-      windMat.opacity = 0.38 * bladeLevel * presence;
-      for (var w = 0; w < WIND_N; w++) {
-        var wa = windAng[w] + windAngle * windSpd[w];
-        var wr = windRad[w];
-        var wz = Math.sin(windAng[w] * 3) * 0.12;
-        windPos[w * 6] = Math.cos(wa) * wr;
-        windPos[w * 6 + 1] = Math.sin(wa) * wr;
-        windPos[w * 6 + 2] = wz;
-        // The tail sits a little further out, so streaks slant like
-        // streaming air instead of tracing perfect circles
-        windPos[w * 6 + 3] = Math.cos(wa + windLen[w]) * wr * 1.05;
-        windPos[w * 6 + 4] = Math.sin(wa + windLen[w]) * wr * 1.05;
-        windPos[w * 6 + 5] = wz * 0.6;
-      }
-      windGeo.attributes.position.needsUpdate = true;
-      for (var m = 0; m < windMists.length; m++) {
-        var mm = windMists[m];
-        mm.ang -= dt * mm.spd * (1 + charge);
-        mm.sprite.position.set(Math.cos(mm.ang) * mm.rad, Math.sin(mm.ang) * mm.rad, Math.sin(mm.ph) * 0.3);
-        var msc = mm.scl * (1 + Math.sin(now * 0.001 + mm.ph) * 0.15);
-        mm.sprite.scale.set(msc, msc * 0.8, 1);
-        mm.sprite.material.opacity = mm.base * bladeLevel * presence;
-      }
-    }
-
-    smokeLevel += ((st.smoke || 0) - smokeLevel) * Math.min(1, dt * 3);
-    smoke.material.opacity = smokeLevel * presence;
-    var ss = 5.8 + Math.sin(now * 0.0011) * 0.35;
-    smoke.scale.set(ss, ss * 0.9, 1);
-    smoke.position.x = Math.sin(now * 0.0006) * 0.18;
-
-    if (embers.visible) {
-      for (var e2 = 0; e2 < EMBER_MAX; e2++) {
-        emberLife[e2] -= dt;
-        if (emberLife[e2] <= 0) { respawnEmber(e2, 1.05); continue; }
-        emberPos[e2 * 3] += emberVel[e2 * 3] * dt * (0.4 + charge * 0.5);
-        emberPos[e2 * 3 + 1] += emberVel[e2 * 3 + 1] * dt * (0.4 + charge * 0.5);
-        emberPos[e2 * 3 + 2] += emberVel[e2 * 3 + 2] * dt * (0.4 + charge * 0.5);
-        emberVel[e2 * 3 + 1] -= dt * 0.55;
-      }
-      emberGeo.attributes.position.needsUpdate = true;
-    }
-
-    if (orbGroup.visible) {
-      for (var o = 0; o < orbMeshes.length; o++) {
-        var oa = spinAngle * 0.6 + (o / orbMeshes.length) * Math.PI * 2;
-        orbMeshes[o].position.set(Math.cos(oa) * 0.98, Math.sin(oa) * 0.3, Math.sin(oa) * 0.98);
-        orbMeshes[o].material.opacity = presence;
-        orbMeshes[o].children[0].material.opacity = 0.3 * presence;
-      }
-    }
-
-    var gs = 3.3 + charge * 0.7 + Math.sin(now * 0.004) * 0.1;
-    glow.scale.set(gs, gs, 1);
-
     renderer.render(scene, camera);
   }
   animate();
