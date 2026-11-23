@@ -954,8 +954,10 @@
       // first (he approved it there), now on every shuriken.
       fx.bladeTilt.rotation.x = -1.0;
       // The roll mirrors for the left hand, so the lean fits each
-      // palm instead of only the right one.
-      fx.bladeGroup.rotation.z = 0.42 * (fx.slot === 0 ? -1 : 1);
+      // palm instead of only the right one. Slot 0 is the right
+      // hand in this pipeline and keeps the original lean; slot
+      // 1, the left hand, mirrors it.
+      fx.bladeGroup.rotation.z = 0.42 * (fx.slot === 0 ? 1 : -1);
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
@@ -966,9 +968,11 @@
   }
 
   var fxList = [buildEffect(), buildEffect()];
-  // Slot 0 serves the left hand, slot 1 the right (see onResults).
-  // The disc lean mirrors per slot, so each hand's shuriken leans
-  // out of its own palm the right way.
+  // In this selfie pipeline the slots come out swapped against
+  // the tracker's labels: slot 0 serves his right hand, slot 1
+  // his left (confirmed by his testing, 2026-11-23). The disc
+  // lean mirrors per slot, so each hand's shuriken leans out of
+  // its own palm the right way.
   fxList[0].slot = 0; fxList[1].slot = 1;
 
   // ---------- Style selection ----------
