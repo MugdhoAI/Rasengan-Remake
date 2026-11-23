@@ -316,7 +316,7 @@
     // outline drives ARM_POLYS below, so the sparkles fill the
     // arms too.
     function armPath(b) {
-      var o = armOutlinePts(b, mode === "wind").outline;
+      var o = armOutlinePts(b, true).outline;
       ctx.moveTo(cx + o[0][0], cx + o[0][1]);
       for (var k = 1; k < o.length; k++) ctx.lineTo(cx + o[k][0], cx + o[k][1]);
       ctx.closePath();
@@ -412,7 +412,7 @@
           var t2 = si / (sp.length - 1);
           var pp = sp[si], qq = sp[si + 1], ss = sp[si - 1];
           var ddx = qq[0] - ss[0], ddy = qq[1] - ss[1], LL = Math.hypot(ddx, ddy) || 1;
-          var ox = -ddy / LL * j * (mode === "wind" ? armWidthFat(t2) : armWidth(t2)) * 0.3, oy = ddx / LL * j * (mode === "wind" ? armWidthFat(t2) : armWidth(t2)) * 0.3;
+          var ox = -ddy / LL * j * armWidthFat(t2) * 0.3, oy = ddx / LL * j * armWidthFat(t2) * 0.3;
           if (si === 2) ctx.moveTo(cx + pp[0] + ox, cx + pp[1] + oy);
           else ctx.lineTo(cx + pp[0] + ox, cx + pp[1] + oy);
         }
@@ -452,7 +452,7 @@
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     for (var b3 = 0; b3 < 4; b3++) {
-      var oo = armOutlinePts(b3, mode === "wind");
+      var oo = armOutlinePts(b3, true);
       function meanR(pts) {
         var s2 = 0;
         for (var mi = 0; mi < pts.length; mi++) s2 += Math.hypot(pts[mi][0], pts[mi][1]);
@@ -478,7 +478,7 @@
   var ARM_POLYS = (function () {
     var k = 3.6 / 512, polys = [];
     for (var b = 0; b < 4; b++) {
-      polys.push(armOutlinePts(b).outline.map(function (p) { return [p[0] * k, -p[1] * k]; }));
+      polys.push(armOutlinePts(b, true).outline.map(function (p) { return [p[0] * k, -p[1] * k]; }));
     }
     return polys;
   })();
@@ -953,17 +953,23 @@
       // the lean diagonal, rising to the right. Proven on Wind
       // first (he approved it there), now on every shuriken.
       fx.bladeTilt.rotation.x = -1.0;
-      fx.bladeGroup.rotation.z = 0.42;
+      // The roll mirrors for the left hand, so the lean fits each
+      // palm instead of only the right one.
+      fx.bladeGroup.rotation.z = 0.42 * (fx.slot === 0 ? -1 : 1);
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
-    fx.bladeGhost.visible = st.wings === "wind";
+    fx.bladeGhost.visible = !!st.wings;
     fx.embers.visible = st.embers > 0;
     if (fx.embers.visible) for (var e = 0; e < fx.emberMax; e++) respawnEmber(fx, e, 1.05);
     fx.orbGroup.visible = st.orbs > 0;
   }
 
   var fxList = [buildEffect(), buildEffect()];
+  // Slot 0 serves the left hand, slot 1 the right (see onResults).
+  // The disc lean mirrors per slot, so each hand's shuriken leans
+  // out of its own palm the right way.
+  fxList[0].slot = 0; fxList[1].slot = 1;
 
   // ---------- Style selection ----------
   var currentStyle = "classic";
@@ -1114,9 +1120,10 @@
     fx.charge += (chargeTarget - fx.charge) * Math.min(1, dt * 5);
 
     if (fx.wasFist && live && !fx.target.fist && fx.charge > 0.45) {
-      if (st.wings === "wind") {
-        // Wind test build: opening the fist throws it, like the
-        // anime toss, instead of the in place pulse.
+      if (st.wings) {
+        // Opening the fist throws it, like the anime toss,
+        // instead of the in place pulse. Proven on Wind first,
+        // now on every shuriken.
         if (fx.throwT < 0) {
           fx.throwT = 0;
           fx.throwFrom.x = fx.pos.x; fx.throwFrom.y = fx.pos.y; fx.throwFrom.r = fx.pos.radius;
@@ -1223,7 +1230,7 @@
       // Wind spins far faster, like the anime: the blades blur
       // into a vortex instead of stepping around. Faster still
       // while it flies.
-      var spinMul = (fx.pulseT >= 0 ? 1.6 : 1) * (st.wings === "wind" ? 2.1 : 1) * (fx.throwT >= 0 ? 1.5 : 1);
+      var spinMul = (fx.pulseT >= 0 ? 1.6 : 1) * (st.wings ? 2.4 : 1) * (fx.throwT >= 0 ? 1.5 : 1);
       fx.bladeSpin.rotation.z -= dt * (5.5 + fx.charge * 5) * spinMul;
     }
 
