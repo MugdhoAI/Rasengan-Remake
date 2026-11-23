@@ -347,6 +347,26 @@
       ctx.stroke();
     }
     ctx.restore();
+    if (mode === "wind") {
+      // Smooth wind pass: broad, soft swirl bands over the disc, so
+      // the spinning disc reads as silky moving air like the
+      // reference, not speckle.
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cx, 472, 0, Math.PI * 2);
+      ctx.clip();
+      for (i = 0; i < 16; i++) {
+        a = Math.random() * Math.PI * 2;
+        rr = 90 + Math.random() * 360;
+        ctx.beginPath();
+        ctx.arc(cx, cx, rr, a, a + 0.7 + Math.random() * 0.9);
+        ctx.strokeStyle = Math.random() < 0.55 ? "rgba(255,255,255,0.10)" : P.shade;
+        ctx.lineWidth = 42 + Math.random() * 62;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     // For Lava, a broken ring of fire glow sits behind the arms
     if (mode === "lava") {
       for (i = 0; i < 110; i++) {
@@ -399,11 +419,22 @@
         ctx.stroke();
       }
     }
-    for (i = 0; i < 240; i++) {
-      a = Math.random() * Math.PI * 2;
-      rr = Math.pow(Math.random(), 0.7) * 452;
-      puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr,
-           14 + Math.random() * 42, P.grain, 0.05 + Math.random() * 0.06);
+    if (mode === "wind") {
+      // No grain speckle for Wind: a few large, faint sheen puffs
+      // inside the arms keep the surface smooth.
+      for (i = 0; i < 26; i++) {
+        a = Math.random() * Math.PI * 2;
+        rr = Math.pow(Math.random(), 0.7) * 440;
+        puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr,
+             46 + Math.random() * 70, [255, 255, 255], 0.045);
+      }
+    } else {
+      for (i = 0; i < 240; i++) {
+        a = Math.random() * Math.PI * 2;
+        rr = Math.pow(Math.random(), 0.7) * 452;
+        puff(cx + Math.cos(a) * rr, cx + Math.sin(a) * rr,
+             14 + Math.random() * 42, P.grain, 0.05 + Math.random() * 0.06);
+      }
     }
     if (mode === "lava") {
       for (i = 0; i < 60; i++) {
@@ -885,7 +916,10 @@
       fx.bladeDiscMat.blending = st.wings === "lava" ? THREE.AdditiveBlending : THREE.NormalBlending;
       fx.bladeDiscMat.needsUpdate = true;
       fx.discOpacityBase = st.wings === "lava" ? 0.5 : (st.wings === "magnet" ? 0.9 : 0.95);
-      fx.bladeOpacityBase = 0.55;
+      // Wind test build: calmer, finer sparkles, so the disc reads
+      // as smooth wind instead of a speckle cloud.
+      fx.bladeOpacityBase = st.wings === "wind" ? 0.30 : 0.55;
+      fx.bladeMat.size = st.wings === "wind" ? 1.6 : 2.4;
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
@@ -933,10 +967,23 @@
   function readHand(fx, lm, now) {
     fx.target.has = true;
     fx.lastSeen = now;
-    var cx = (lm[0].x + lm[5].x + lm[17].x) / 3;
-    var cy = (lm[0].y + lm[5].y + lm[17].y) / 3;
-    cx += (lm[9].x - lm[0].x) * 0.35;
-    cy += (lm[9].y - lm[0].y) * 0.35;
+    var cx, cy;
+    if (fx.styleName === "wind") {
+      // Wind test build, anchor studied from the original demo's
+      // code: the centre is the mean of the wrist and the four
+      // knuckles. On top of that, a hover offset along the wrist
+      // to middle knuckle axis, so the disc floats above the palm
+      // the way it does in the reference, instead of sitting in it.
+      cx = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
+      cy = (lm[0].y + lm[5].y + lm[9].y + lm[13].y + lm[17].y) / 5;
+      cx += (lm[9].x - lm[0].x) * 0.55;
+      cy += (lm[9].y - lm[0].y) * 0.55;
+    } else {
+      cx = (lm[0].x + lm[5].x + lm[17].x) / 3;
+      cy = (lm[0].y + lm[5].y + lm[17].y) / 3;
+      cx += (lm[9].x - lm[0].x) * 0.35;
+      cy += (lm[9].y - lm[0].y) * 0.35;
+    }
     var palmW = dist(lm[5], lm[17]);
     var w = screenToWorld(1 - cx, cy);
     fx.target.x = w.x; fx.target.y = w.y;
@@ -1004,9 +1051,14 @@
 
     if (live) {
       var k = 1 - Math.pow(0.0001, dt);
+      // Wind test build: the original demo lerps at 0.32 a frame,
+      // much tighter than ours, so the effect sticks to the palm
+      // instead of trailing behind it.
+      if (fx.styleName === "wind") k = 1 - Math.pow(0.68, dt * 60);
       fx.pos.x += (fx.target.x - fx.pos.x) * k;
       fx.pos.y += (fx.target.y - fx.pos.y) * k;
-      fx.pos.radius += (fx.target.radius - fx.pos.radius) * k;
+      fx.pos.radius += (fx.target.radius - fx.pos.radius) *
+        (fx.styleName === "wind" ? 1 - Math.pow(0.72, dt * 60) : k);
     }
 
     var chargeTarget = (live && fx.target.fist) ? 1 : 0;
@@ -1024,7 +1076,10 @@
 
     var R = fx.pos.radius * (1 - fx.charge * 0.24) * (0.72 + 0.28 * fx.presence);
     var flick = 1 + (Math.random() - 0.5) * st.flicker * (1 + fx.charge);
-    fx.group.position.set(fx.pos.x, fx.pos.y + Math.sin(now * 0.0016) * 3.5, 0);
+    // No idle bob for Wind: the reference effect sits still on the
+    // palm, the bob made ours feel like it was drifting off it.
+    var bob = fx.styleName === "wind" ? 0 : Math.sin(now * 0.0016) * 3.5;
+    fx.group.position.set(fx.pos.x, fx.pos.y + bob, 0);
     fx.group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
 
     fx.sphereMat.opacity = fx.presence;
