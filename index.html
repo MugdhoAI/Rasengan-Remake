@@ -743,11 +743,19 @@
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
     });
     var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(3.6, 64), bladeDiscMat);
-    bladeGroup.add(bladeDisc);
-    bladeGroup.add(new THREE.Points(bladeGeo, bladeMat));
+    // Tilt group, then spin group: the disc spins around its own
+    // normal while the tilt holds its angle, the way the reference
+    // shuriken sits at an angle instead of flat to the camera.
+    var bladeTilt = new THREE.Group();
+    var bladeSpin = new THREE.Group();
+    bladeSpin.add(bladeDisc);
+    bladeSpin.add(new THREE.Points(bladeGeo, bladeMat));
+    bladeTilt.add(bladeSpin);
+    bladeGroup.add(bladeTilt);
     bladeGroup.visible = false;
     group.add(bladeGroup);
-    fx.bladeGroup = bladeGroup; fx.bladeGeo = bladeGeo; fx.bladeMat = bladeMat;
+    fx.bladeGroup = bladeGroup; fx.bladeTilt = bladeTilt; fx.bladeSpin = bladeSpin;
+    fx.bladeGeo = bladeGeo; fx.bladeMat = bladeMat;
     fx.bladeDiscMat = bladeDiscMat; fx.bladeCol = bladeCol; fx.bladeT = bladeT; fx.bladeSeed = bladeSeed;
 
     // Wind around the Rasenshuriken: fast thin streaks circling the
@@ -920,6 +928,11 @@
       // as smooth wind instead of a speckle cloud.
       fx.bladeOpacityBase = st.wings === "wind" ? 0.30 : 0.55;
       fx.bladeMat.size = st.wings === "wind" ? 1.6 : 2.4;
+      // Wind test build: the disc tilts to about 57 degrees and
+      // spins on its own axis, like the reference. The disc in the
+      // reference video measures about half as tall as wide, which
+      // is a tilt of roughly 60 degrees from flat to the camera.
+      fx.bladeTilt.rotation.x = st.wings === "wind" ? -1.0 : 0;
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
@@ -1084,7 +1097,9 @@
 
     fx.sphereMat.opacity = fx.presence;
     fx.glow.material.opacity = (0.5 + fx.charge * 0.3 + (fx.pulseT >= 0 ? 0.25 : 0)) * fx.presence;
-    fx.shellMat.opacity = 0.65 * fx.presence;
+    // Wind test build: the shell speckle nearly off, so the core
+    // reads as the smooth bright glow it is in the reference.
+    fx.shellMat.opacity = (fx.styleName === "wind" ? 0.18 : 0.65) * fx.presence;
     fx.swirlMat.opacity = (st.wings ? 0.05 : 0.32 + fx.charge * 0.25) * fx.presence;
     fx.emberMat.opacity = 0.9 * fx.presence;
     fx.coreGlowMat.opacity = st.coreGlowO * (1 + fx.charge * 0.5) * fx.presence;
@@ -1132,7 +1147,7 @@
     if (fx.bladeGroup.visible) {
       fx.bladeMat.opacity = fx.bladeOpacityBase * fx.bladeLevel * fx.presence;
       fx.bladeDiscMat.opacity = fx.discOpacityBase * fx.bladeLevel * fx.presence;
-      fx.bladeGroup.rotation.z -= dt * (5.5 + fx.charge * 5) * (fx.pulseT >= 0 ? 1.6 : 1);
+      fx.bladeSpin.rotation.z -= dt * (5.5 + fx.charge * 5) * (fx.pulseT >= 0 ? 1.6 : 1);
     }
 
     // Wind streaks shear around the disc, mist drifts at the rim,
