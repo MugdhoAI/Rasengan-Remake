@@ -256,14 +256,17 @@
     return [Math.cos(ang) * rad, Math.sin(ang) * rad];
   }
   function armWidth(t) { return 6 + 128 * Math.pow(1 - t, 1.25); }
-  function armOutlinePts(b) {
+  // A fuller profile, tested on Wind first: the same taper, a bit
+  // thicker through the middle and the tip, like the anime blades.
+  function armWidthFat(t) { return 12 + 138 * Math.pow(1 - t, 1.05); }
+  function armOutlinePts(b, fat) {
     var A = b * 90, N = 26, spine = [], left = [], right = [], i, t;
     for (i = 0; i <= N; i++) spine.push(armSpine(A, i / N));
     for (i = 0; i <= N; i++) {
       t = i / N;
       var p = spine[i], q = spine[Math.min(N, i + 1)], s = spine[Math.max(0, i - 1)];
       var dx = q[0] - s[0], dy = q[1] - s[1], L = Math.hypot(dx, dy) || 1;
-      var nx = -dy / L, ny = dx / L, w = armWidth(t) / 2;
+      var nx = -dy / L, ny = dx / L, w = (fat ? armWidthFat(t) : armWidth(t)) / 2;
       left.push([p[0] + nx * w, p[1] + ny * w]);
       right.push([p[0] - nx * w, p[1] - ny * w]);
     }
@@ -313,7 +316,7 @@
     // outline drives ARM_POLYS below, so the sparkles fill the
     // arms too.
     function armPath(b) {
-      var o = armOutlinePts(b).outline;
+      var o = armOutlinePts(b, mode === "wind").outline;
       ctx.moveTo(cx + o[0][0], cx + o[0][1]);
       for (var k = 1; k < o.length; k++) ctx.lineTo(cx + o[k][0], cx + o[k][1]);
       ctx.closePath();
@@ -409,7 +412,7 @@
           var t2 = si / (sp.length - 1);
           var pp = sp[si], qq = sp[si + 1], ss = sp[si - 1];
           var ddx = qq[0] - ss[0], ddy = qq[1] - ss[1], LL = Math.hypot(ddx, ddy) || 1;
-          var ox = -ddy / LL * j * armWidth(t2) * 0.3, oy = ddx / LL * j * armWidth(t2) * 0.3;
+          var ox = -ddy / LL * j * (mode === "wind" ? armWidthFat(t2) : armWidth(t2)) * 0.3, oy = ddx / LL * j * (mode === "wind" ? armWidthFat(t2) : armWidth(t2)) * 0.3;
           if (si === 2) ctx.moveTo(cx + pp[0] + ox, cx + pp[1] + oy);
           else ctx.lineTo(cx + pp[0] + ox, cx + pp[1] + oy);
         }
@@ -449,7 +452,7 @@
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     for (var b3 = 0; b3 < 4; b3++) {
-      var oo = armOutlinePts(b3);
+      var oo = armOutlinePts(b3, mode === "wind");
       function meanR(pts) {
         var s2 = 0;
         for (var mi = 0; mi < pts.length; mi++) s2 += Math.hypot(pts[mi][0], pts[mi][1]);
@@ -750,11 +753,22 @@
     var bladeSpin = new THREE.Group();
     bladeSpin.add(bladeDisc);
     bladeSpin.add(new THREE.Points(bladeGeo, bladeMat));
+    // Motion blur ghost for Wind: a second copy of the sparkle
+    // cloud trailing the spin by a fixed angle at low opacity, so
+    // the fast spin smears like the anime instead of stepping.
+    var bladeGhostMat = new THREE.PointsMaterial({
+      size: 2.4, map: glowTex, vertexColors: true, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false
+    });
+    var bladeGhost = new THREE.Points(bladeGeo, bladeGhostMat);
+    bladeGhost.visible = false;
+    bladeSpin.add(bladeGhost);
     bladeTilt.add(bladeSpin);
     bladeGroup.add(bladeTilt);
     bladeGroup.visible = false;
     group.add(bladeGroup);
     fx.bladeGroup = bladeGroup; fx.bladeTilt = bladeTilt; fx.bladeSpin = bladeSpin;
+    fx.bladeGhost = bladeGhost; fx.bladeGhostMat = bladeGhostMat;
     fx.bladeGeo = bladeGeo; fx.bladeMat = bladeMat;
     fx.bladeDiscMat = bladeDiscMat; fx.bladeCol = bladeCol; fx.bladeT = bladeT; fx.bladeSeed = bladeSeed;
 
@@ -858,6 +872,7 @@
     fx.charge = 0;
     fx.wasFist = false;
     fx.pulseT = -1;
+    fx.throwT = -1; fx.throwFrom = { x: 0, y: 0, r: 60 };
     fx.presence = 0;
     fx.colorBlend = 1;
     fx.bladeLevel = 0;
@@ -942,6 +957,7 @@
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
+    fx.bladeGhost.visible = st.wings === "wind";
     fx.embers.visible = st.embers > 0;
     if (fx.embers.visible) for (var e = 0; e < fx.emberMax; e++) respawnEmber(fx, e, 1.05);
     fx.orbGroup.visible = st.orbs > 0;
@@ -1069,6 +1085,15 @@
     var st = STYLES[fx.styleName];
     var live = fx.target.has && now - fx.lastSeen < 1200;
     fx.presence += ((live ? 1 : 0) - fx.presence) * Math.min(1, dt * (live ? 7 : 5));
+    // Wind test build, the throw: while it flies and flashes,
+    // presence is driven by the throw, not the hand, so the
+    // shuriken can leave the palm and burn out on its own.
+    if (fx.throwT >= 0) {
+      fx.throwT += dt;
+      if (fx.throwT < 0.55) fx.presence = Math.max(fx.presence, 0.98);
+      else if (fx.throwT < 0.95) fx.presence = 1 - (fx.throwT - 0.55) / 0.4;
+      else { fx.throwT = -1; fx.group.position.z = 0; }
+    }
     if (fx.presence < 0.02 && !live) { fx.group.visible = false; return false; }
     fx.group.visible = true;
 
@@ -1088,7 +1113,17 @@
     var chargeTarget = (live && fx.target.fist) ? 1 : 0;
     fx.charge += (chargeTarget - fx.charge) * Math.min(1, dt * 5);
 
-    if (fx.wasFist && live && !fx.target.fist && fx.charge > 0.45 && fx.pulseT < 0) fx.pulseT = 0;
+    if (fx.wasFist && live && !fx.target.fist && fx.charge > 0.45) {
+      if (st.wings === "wind") {
+        // Wind test build: opening the fist throws it, like the
+        // anime toss, instead of the in place pulse.
+        if (fx.throwT < 0) {
+          fx.throwT = 0;
+          fx.throwFrom.x = fx.pos.x; fx.throwFrom.y = fx.pos.y; fx.throwFrom.r = fx.pos.radius;
+          fx.charge = 0;
+        }
+      } else if (fx.pulseT < 0) fx.pulseT = 0;
+    }
     fx.wasFist = live && fx.target.fist;
     var pulseScale = 1;
     if (fx.pulseT >= 0) {
@@ -1107,8 +1142,29 @@
     fx.group.position.set(fx.pos.x, fx.pos.y + bob, 0);
     fx.group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
 
+    // Wind throw flight: it detaches from the palm, rises and
+    // rushes toward the camera, growing as it comes, then
+    // balloons and burns out in the flash, the way the anime
+    // toss ends in a whiteout.
+    if (fx.throwT >= 0) {
+      var camZ = (viewH / 2) / Math.tan(THREE.MathUtils.degToRad(20));
+      var tNorm = fx.throwFrom.r / Math.max(1, fx.pos.radius);
+      if (fx.throwT < 0.55) {
+        var tp = fx.throwT / 0.55, te = tp * tp;
+        fx.group.position.set(
+          fx.throwFrom.x * (1 - te * 0.25),
+          fx.throwFrom.y + viewH * 0.20 * te,
+          camZ * 0.42 * te);
+        fx.group.scale.multiplyScalar(tNorm * (1 + 1.15 * te));
+      } else {
+        var fq = (fx.throwT - 0.55) / 0.4;
+        fx.group.position.set(fx.throwFrom.x * 0.75, fx.throwFrom.y + viewH * 0.20, camZ * 0.42);
+        fx.group.scale.multiplyScalar(tNorm * 2.15 * (1 + 1.5 * fq));
+      }
+    }
+
     fx.sphereMat.opacity = fx.presence;
-    fx.glow.material.opacity = (0.5 + fx.charge * 0.3 + (fx.pulseT >= 0 ? 0.25 : 0)) * fx.presence;
+    fx.glow.material.opacity = (0.5 + fx.charge * 0.3 + (fx.pulseT >= 0 ? 0.25 : 0) + (fx.throwT >= 0.55 ? 0.4 : 0)) * fx.presence;
     // Wind test build: the shell speckle nearly off, so the core
     // reads as the smooth bright glow it is in the reference.
     fx.shellMat.opacity = (fx.styleName === "wind" ? 0.18 : 0.65) * fx.presence;
@@ -1159,14 +1215,23 @@
     if (fx.bladeGroup.visible) {
       fx.bladeMat.opacity = fx.bladeOpacityBase * fx.bladeLevel * fx.presence;
       fx.bladeDiscMat.opacity = fx.discOpacityBase * fx.bladeLevel * fx.presence;
-      fx.bladeSpin.rotation.z -= dt * (5.5 + fx.charge * 5) * (fx.pulseT >= 0 ? 1.6 : 1);
+      if (fx.bladeGhost.visible) {
+        fx.bladeGhostMat.opacity = fx.bladeMat.opacity * 0.35;
+        fx.bladeGhostMat.size = fx.bladeMat.size;
+        fx.bladeGhost.rotation.z = 0.38;
+      }
+      // Wind spins far faster, like the anime: the blades blur
+      // into a vortex instead of stepping around. Faster still
+      // while it flies.
+      var spinMul = (fx.pulseT >= 0 ? 1.6 : 1) * (st.wings === "wind" ? 2.1 : 1) * (fx.throwT >= 0 ? 1.5 : 1);
+      fx.bladeSpin.rotation.z -= dt * (5.5 + fx.charge * 5) * spinMul;
     }
 
     // Wind streaks shear around the disc, mist drifts at the rim,
     // all turning the same way as the disc
     fx.windGroup.visible = fx.bladeLevel > 0.02;
     if (fx.windGroup.visible) {
-      fx.windAngle -= dt * (8 + fx.charge * 6) * (fx.pulseT >= 0 ? 1.5 : 1);
+      fx.windAngle -= dt * (8 + fx.charge * 6) * (fx.pulseT >= 0 ? 1.5 : 1) * (fx.throwT >= 0 ? 1.8 : 1);
       fx.windMat.opacity = 0.38 * fx.bladeLevel * fx.presence;
       for (var w = 0; w < fx.windN; w++) {
         var wa = fx.windAng[w] + fx.windAngle * fx.windSpd[w];
