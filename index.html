@@ -996,8 +996,11 @@
       // reference, instead of sitting in it.
       cx = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
       cy = (lm[0].y + lm[5].y + lm[9].y + lm[13].y + lm[17].y) / 5;
-      cx += (lm[9].x - lm[0].x) * 0.55;
-      cy += (lm[9].y - lm[0].y) * 0.55;
+      // 0.55 at first, but that pushed the disc a full palm width
+      // off the hand; 0.35 keeps it floating above the palm while
+      // staying on it.
+      cx += (lm[9].x - lm[0].x) * 0.35;
+      cy += (lm[9].y - lm[0].y) * 0.35;
     } else {
       cx = (lm[0].x + lm[5].x + lm[17].x) / 3;
       cy = (lm[0].y + lm[5].y + lm[17].y) / 3;
@@ -1071,15 +1074,15 @@
 
     if (live) {
       var k = 1 - Math.pow(0.0001, dt);
-      // Shurikens: the original demo lerps at 0.32 a frame, much
-      // tighter than ours, so the effect sticks to the palm
-      // instead of trailing behind it. Proven on Wind, now on
-      // every winged style.
-      if (st.wings) k = 1 - Math.pow(0.68, dt * 60);
+      // Shurikens: the original demo lerps at 0.32 a frame; we run
+      // a touch tighter, 0.42, because with the hover offset any
+      // lag shows as the disc sitting off the palm. Proven on
+      // Wind first, now on every winged style.
+      if (st.wings) k = 1 - Math.pow(0.58, dt * 60);
       fx.pos.x += (fx.target.x - fx.pos.x) * k;
       fx.pos.y += (fx.target.y - fx.pos.y) * k;
       fx.pos.radius += (fx.target.radius - fx.pos.radius) *
-        (st.wings ? 1 - Math.pow(0.72, dt * 60) : k);
+        (st.wings ? 1 - Math.pow(0.65, dt * 60) : k);
     }
 
     var chargeTarget = (live && fx.target.fist) ? 1 : 0;
