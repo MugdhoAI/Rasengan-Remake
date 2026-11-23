@@ -246,10 +246,34 @@
     return new THREE.CanvasTexture(c);
   }
 
+  // One blade arm as an outline, in texture pixels around the
+  // centre: a curved spine from the core to the rim, with a width
+  // that starts wide at the core and tapers steadily to a fine
+  // point at the tip, the way the reference blades are shaped.
+  function armSpine(A, t) {
+    var ang = (A - 10 + 68 * Math.pow(t, 1.15)) * Math.PI / 180;
+    var rad = 100 + 390 * Math.pow(t, 0.92);
+    return [Math.cos(ang) * rad, Math.sin(ang) * rad];
+  }
+  function armWidth(t) { return 6 + 128 * Math.pow(1 - t, 1.25); }
+  function armOutlinePts(b) {
+    var A = b * 90, N = 26, spine = [], left = [], right = [], i, t;
+    for (i = 0; i <= N; i++) spine.push(armSpine(A, i / N));
+    for (i = 0; i <= N; i++) {
+      t = i / N;
+      var p = spine[i], q = spine[Math.min(N, i + 1)], s = spine[Math.max(0, i - 1)];
+      var dx = q[0] - s[0], dy = q[1] - s[1], L = Math.hypot(dx, dy) || 1;
+      var nx = -dy / L, ny = dx / L, w = armWidth(t) / 2;
+      left.push([p[0] + nx * w, p[1] + ny * w]);
+      right.push([p[0] - nx * w, p[1] - ny * w]);
+    }
+    return { outline: left.concat(right.slice().reverse()), left: left, right: right, spine: spine };
+  }
+
   // The wing disc is a swirling disc of chakra with four blade arms
   // on it, shaped from the reference art: each arm is a long spiral
-  // fin that rises from the core, sweeps a quarter turn around the
-  // disc and ends in a sharp hooked tip at the rim. The arms carry
+  // fin that rises from the core wide, sweeps a quarter turn around
+  // the disc, and tapers to a fine point at the rim. The arms carry
   // the brightest fill and a bright line along the outer edge, over
   // a dimmer disc with swirl shading. No seals on the wings, ever:
   // the pattern lives only on the core sphere.
@@ -284,19 +308,14 @@
       ctx.fillStyle = g;
       ctx.fillRect(px - r, py - r, r * 2, r * 2);
     }
-    // One blade arm: a long spiral fin. It rises from the core at
-    // the trailing side, sweeps around the disc along a convex outer
-    // edge, and ends in a sharp hooked tip at the rim; the inner
-    // edge curves back down to the core. The same numbers drive
-    // ARM_POLYS below, so the sparkles can fill the arms too.
+    // One blade arm, traced from the shared outline: wide at the
+    // core, tapering steadily to a fine point at the rim. The same
+    // outline drives ARM_POLYS below, so the sparkles fill the
+    // arms too.
     function armPath(b) {
-      var A = b * 90;
-      var baseTrail = pt(A - 52, 110), tip = pt(A + 60, 484),
-          outerCtl = pt(A + 6, 458),
-          innerCtl = pt(A + 36, 278), baseLead = pt(A - 12, 104);
-      ctx.moveTo(baseTrail[0], baseTrail[1]);
-      ctx.quadraticCurveTo(outerCtl[0], outerCtl[1], tip[0], tip[1]);
-      ctx.quadraticCurveTo(innerCtl[0], innerCtl[1], baseLead[0], baseLead[1]);
+      var o = armOutlinePts(b).outline;
+      ctx.moveTo(cx + o[0][0], cx + o[0][1]);
+      for (var k = 1; k < o.length; k++) ctx.lineTo(cx + o[k][0], cx + o[k][1]);
       ctx.closePath();
     }
     function armsPath() {
@@ -363,14 +382,19 @@
     armsPath();
     ctx.clip();
     for (var b2 = 0; b2 < 4; b2++) {
-      var A2 = b2 * 90;
-      for (var j = 0; j < 2; j++) {
-        var p0 = pt(A2 - 34 + j * 19, 148), p1 = pt(A2 + 4 + j * 16, 292), p2 = pt(A2 + 40 + j * 10, 428);
+      var sp = armOutlinePts(b2).spine;
+      for (var j = -1; j <= 1; j += 2) {
         ctx.beginPath();
-        ctx.moveTo(p0[0], p0[1]);
-        ctx.quadraticCurveTo(p1[0], p1[1], p2[0], p2[1]);
+        for (var si = 2; si < sp.length - 1; si++) {
+          var t2 = si / (sp.length - 1);
+          var pp = sp[si], qq = sp[si + 1], ss = sp[si - 1];
+          var ddx = qq[0] - ss[0], ddy = qq[1] - ss[1], LL = Math.hypot(ddx, ddy) || 1;
+          var ox = -ddy / LL * j * armWidth(t2) * 0.3, oy = ddx / LL * j * armWidth(t2) * 0.3;
+          if (si === 2) ctx.moveTo(cx + pp[0] + ox, cx + pp[1] + oy);
+          else ctx.lineTo(cx + pp[0] + ox, cx + pp[1] + oy);
+        }
         ctx.strokeStyle = P.shade;
-        ctx.lineWidth = 17 - j * 7;
+        ctx.lineWidth = 13;
         ctx.lineCap = "round";
         ctx.stroke();
       }
@@ -389,51 +413,38 @@
       }
     }
     ctx.restore();
-    // Bright line along each arm's outer edge: the cutting edge
+    // Bright line along each arm's outer edge (the side farther
+    // from the centre): the cutting edge
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     for (var b3 = 0; b3 < 4; b3++) {
-      var A3 = b3 * 90;
-      var bt = pt(A3 - 52, 110), tp = pt(A3 + 60, 484), oc = pt(A3 + 6, 458);
-      ctx.beginPath();
-      ctx.moveTo(bt[0], bt[1]);
-      ctx.quadraticCurveTo(oc[0], oc[1], tp[0], tp[1]);
-      ctx.strokeStyle = P.edge;
-      ctx.lineWidth = 6;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bt[0], bt[1]);
-      ctx.quadraticCurveTo(oc[0], oc[1], tp[0], tp[1]);
-      ctx.strokeStyle = "rgba(255,255,255,0.95)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      var oo = armOutlinePts(b3);
+      function meanR(pts) {
+        var s2 = 0;
+        for (var mi = 0; mi < pts.length; mi++) s2 += Math.hypot(pts[mi][0], pts[mi][1]);
+        return s2 / pts.length;
+      }
+      var outer = meanR(oo.left) > meanR(oo.right) ? oo.left : oo.right;
+      for (var pass = 0; pass < 2; pass++) {
+        ctx.beginPath();
+        ctx.moveTo(cx + outer[0][0], cx + outer[0][1]);
+        for (var k2 = 1; k2 < outer.length; k2++) ctx.lineTo(cx + outer[k2][0], cx + outer[k2][1]);
+        ctx.strokeStyle = pass === 0 ? P.edge : "rgba(255,255,255,0.95)";
+        ctx.lineWidth = pass === 0 ? 6 : 2;
+        ctx.stroke();
+      }
     }
     return new THREE.CanvasTexture(c);
   }
 
-  // The four blade arms as polygons in disc units, sampled from the
-  // same curves the wing texture draws (disc radius 3.6, texture
-  // 1024 px across, y flipped), so the sparkle cloud can be
-  // scattered inside the arms themselves.
+  // The four blade arms as polygons in disc units, from the same
+  // outline the wing texture draws (disc radius 3.6, texture 1024
+  // px across, y flipped), so the sparkle cloud can be scattered
+  // inside the arms themselves.
   var ARM_POLYS = (function () {
-    function pt(deg, r) {
-      var t = deg * Math.PI / 180, k = 3.6 / 512;
-      return [Math.cos(t) * r * k, -Math.sin(t) * r * k];
-    }
-    function quad(p0, p1, p2, n) {
-      var out = [];
-      for (var i = 0; i <= n; i++) {
-        var t = i / n, u = 1 - t;
-        out.push([u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0],
-                  u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]]);
-      }
-      return out;
-    }
-    var polys = [];
+    var k = 3.6 / 512, polys = [];
     for (var b = 0; b < 4; b++) {
-      var A = b * 90;
-      var baseTrail = pt(A - 52, 110), tip = pt(A + 60, 484),
-          outerCtl = pt(A + 6, 458), innerCtl = pt(A + 36, 278), baseLead = pt(A - 12, 104);
-      polys.push(quad(baseTrail, outerCtl, tip, 20).concat(quad(tip, innerCtl, baseLead, 20)));
+      polys.push(armOutlinePts(b).outline.map(function (p) { return [p[0] * k, -p[1] * k]; }));
     }
     return polys;
   })();
