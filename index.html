@@ -928,16 +928,17 @@
       // as smooth wind instead of a speckle cloud.
       fx.bladeOpacityBase = st.wings === "wind" ? 0.30 : 0.55;
       fx.bladeMat.size = st.wings === "wind" ? 1.6 : 2.4;
-      // Wind test build: the disc tilts and spins on its own axis,
-      // like the reference. Rounds 2 and 3 pitched it straight
-      // back, then straight forward, and both read wrong: the
-      // reference disc leans diagonally, its front lower edge
-      // dipping down in front of the hand so the blades sweep
-      // down the front side. So the tilt is a pitch (front edge
-      // near, about 57 degrees) plus a roll of the whole blade
-      // group that sets the lean diagonal, rising to the right.
-      fx.bladeTilt.rotation.x = st.wings === "wind" ? -1.0 : 0;
-      fx.bladeGroup.rotation.z = st.wings === "wind" ? 0.42 : 0;
+      // The disc tilts and spins on its own axis, like the
+      // reference. Rounds 2 and 3 pitched it straight back, then
+      // straight forward, and both read wrong: the reference disc
+      // leans diagonally, its front lower edge dipping down in
+      // front of the hand so the blades sweep down the front
+      // side. So the tilt is a pitch (front edge near, about 57
+      // degrees) plus a roll of the whole blade group that sets
+      // the lean diagonal, rising to the right. Proven on Wind
+      // first (he approved it there), now on every shuriken.
+      fx.bladeTilt.rotation.x = -1.0;
+      fx.bladeGroup.rotation.z = 0.42;
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
@@ -986,12 +987,13 @@
     fx.target.has = true;
     fx.lastSeen = now;
     var cx, cy;
-    if (fx.styleName === "wind") {
-      // Wind test build, anchor studied from the original demo's
-      // code: the centre is the mean of the wrist and the four
-      // knuckles. On top of that, a hover offset along the wrist
-      // to middle knuckle axis, so the disc floats above the palm
-      // the way it does in the reference, instead of sitting in it.
+    if (STYLES[fx.styleName] && STYLES[fx.styleName].wings) {
+      // Shuriken anchor, studied from the original demo's code
+      // and proven on Wind first: the centre is the mean of the
+      // wrist and the four knuckles. On top of that, a hover
+      // offset along the wrist to middle knuckle axis, so the
+      // disc floats above the palm the way it does in the
+      // reference, instead of sitting in it.
       cx = (lm[0].x + lm[5].x + lm[9].x + lm[13].x + lm[17].x) / 5;
       cy = (lm[0].y + lm[5].y + lm[9].y + lm[13].y + lm[17].y) / 5;
       cx += (lm[9].x - lm[0].x) * 0.55;
@@ -1069,14 +1071,15 @@
 
     if (live) {
       var k = 1 - Math.pow(0.0001, dt);
-      // Wind test build: the original demo lerps at 0.32 a frame,
-      // much tighter than ours, so the effect sticks to the palm
-      // instead of trailing behind it.
-      if (fx.styleName === "wind") k = 1 - Math.pow(0.68, dt * 60);
+      // Shurikens: the original demo lerps at 0.32 a frame, much
+      // tighter than ours, so the effect sticks to the palm
+      // instead of trailing behind it. Proven on Wind, now on
+      // every winged style.
+      if (st.wings) k = 1 - Math.pow(0.68, dt * 60);
       fx.pos.x += (fx.target.x - fx.pos.x) * k;
       fx.pos.y += (fx.target.y - fx.pos.y) * k;
       fx.pos.radius += (fx.target.radius - fx.pos.radius) *
-        (fx.styleName === "wind" ? 1 - Math.pow(0.72, dt * 60) : k);
+        (st.wings ? 1 - Math.pow(0.72, dt * 60) : k);
     }
 
     var chargeTarget = (live && fx.target.fist) ? 1 : 0;
@@ -1094,9 +1097,10 @@
 
     var R = fx.pos.radius * (1 - fx.charge * 0.24) * (0.72 + 0.28 * fx.presence);
     var flick = 1 + (Math.random() - 0.5) * st.flicker * (1 + fx.charge);
-    // No idle bob for Wind: the reference effect sits still on the
-    // palm, the bob made ours feel like it was drifting off it.
-    var bob = fx.styleName === "wind" ? 0 : Math.sin(now * 0.0016) * 3.5;
+    // No idle bob for the shurikens: the reference effect sits
+    // still on the palm, the bob made ours feel like it was
+    // drifting off it.
+    var bob = st.wings ? 0 : Math.sin(now * 0.0016) * 3.5;
     fx.group.position.set(fx.pos.x, fx.pos.y + bob, 0);
     fx.group.scale.set(R * flick * pulseScale, R * flick * pulseScale, R * flick * pulseScale);
 
