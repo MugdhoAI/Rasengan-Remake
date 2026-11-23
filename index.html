@@ -928,14 +928,16 @@
       // as smooth wind instead of a speckle cloud.
       fx.bladeOpacityBase = st.wings === "wind" ? 0.30 : 0.55;
       fx.bladeMat.size = st.wings === "wind" ? 1.6 : 2.4;
-      // Wind test build: the disc tilts to about 57 degrees and
-      // spins on its own axis, like the reference. The disc in the
-      // reference video measures about half as tall as wide, which
-      // is a tilt of roughly 60 degrees from flat to the camera.
-      // Round 2 leant it the wrong way (top edge away); the
-      // reference leans the other side, top edge toward the
-      // viewer, tipping forward off the palm, so the sign flips.
-      fx.bladeTilt.rotation.x = st.wings === "wind" ? 1.0 : 0;
+      // Wind test build: the disc tilts and spins on its own axis,
+      // like the reference. Rounds 2 and 3 pitched it straight
+      // back, then straight forward, and both read wrong: the
+      // reference disc leans diagonally, its front lower edge
+      // dipping down in front of the hand so the blades sweep
+      // down the front side. So the tilt is a pitch (front edge
+      // near, about 57 degrees) plus a roll of the whole blade
+      // group that sets the lean diagonal, rising to the right.
+      fx.bladeTilt.rotation.x = st.wings === "wind" ? -1.0 : 0;
+      fx.bladeGroup.rotation.z = st.wings === "wind" ? 0.42 : 0;
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
