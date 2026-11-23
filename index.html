@@ -246,28 +246,31 @@
     return new THREE.CanvasTexture(c);
   }
 
-  // The wing disc is four true blades, shaped from the reference
-  // frames of the original effect: one pinwheel star, a sharp tip on
-  // each blade, a convex leading edge, and a concave trailing edge
-  // that cuts deep toward the core, so the silhouette reads as a
-  // shuriken even mid spin. A faint field sits behind the blades and
-  // a bright line runs along each leading edge. No seals on the
-  // wings, ever: the pattern lives only on the core sphere.
+  // The wing disc is a swirling disc of chakra with four blade arms
+  // on it, shaped from the reference art: each arm is a long spiral
+  // fin that rises from the core, sweeps a quarter turn around the
+  // disc and ends in a sharp hooked tip at the rim. The arms carry
+  // the brightest fill and a bright line along the outer edge, over
+  // a dimmer disc with swirl shading. No seals on the wings, ever:
+  // the pattern lives only on the core sphere.
   function wingDiscTexture(mode) {
     var S = 1024, c = makeCanvas(S, S), ctx = c.getContext("2d");
     var cx = S / 2, i, a, rr;
     var P = {
       wind:   { grad: [[0, "rgba(255,255,255,0.98)"], [0.35, "rgba(223,247,255,0.96)"], [0.75, "rgba(168,228,255,0.92)"], [1, "rgba(140,215,255,0.55)"]],
                 glow: "rgba(150,220,255,0.55)", edge: "rgba(255,255,255,0.9)",
-                shade: "rgba(30,120,190,0.16)", field: ["rgba(210,240,255,0.14)", "rgba(160,220,255,0)"],
+                shade: "rgba(30,120,190,0.16)",
+                disc: ["rgba(235,250,255,0.85)", "rgba(170,225,255,0.5)", "rgba(140,215,255,0.16)"],
                 grain: [255, 255, 255] },
       magnet: { grad: [[0, "rgba(255,255,255,0.98)"], [0.35, "rgba(207,230,255,0.96)"], [0.75, "rgba(111,168,255,0.94)"], [1, "rgba(47,107,255,0.6)"]],
                 glow: "rgba(90,150,255,0.55)", edge: "rgba(234,246,255,0.9)",
-                shade: "rgba(8,30,140,0.18)", field: ["rgba(120,170,255,0.15)", "rgba(47,107,255,0)"],
+                shade: "rgba(8,30,140,0.18)",
+                disc: ["rgba(210,232,255,0.85)", "rgba(100,160,255,0.5)", "rgba(47,107,255,0.16)"],
                 grain: [188, 214, 255] },
       lava:   { grad: [[0, "rgba(255,248,220,0.98)"], [0.35, "rgba(255,210,63,0.96)"], [0.75, "rgba(255,122,26,0.94)"], [1, "rgba(230,60,0,0.6)"]],
                 glow: "rgba(255,120,20,0.5)", edge: "rgba(255,243,196,0.92)",
-                shade: "rgba(150,25,0,0.18)", field: ["rgba(255,150,50,0.14)", "rgba(220,70,0,0)"],
+                shade: "rgba(150,25,0,0.18)",
+                disc: ["rgba(255,240,200,0.85)", "rgba(255,150,50,0.5)", "rgba(230,70,0,0.16)"],
                 grain: [255, 220, 130] }
     }[mode];
     function pt(deg, r) {
@@ -281,35 +284,51 @@
       ctx.fillStyle = g;
       ctx.fillRect(px - r, py - r, r * 2, r * 2);
     }
-    // One blade of the pinwheel: root leading point, a convex leading
-    // edge out to the sharp tip, then a concave trailing edge that
-    // sweeps back in toward the core.
-    function bladePath(b) {
+    // One blade arm: a long spiral fin. It rises from the core at
+    // the trailing side, sweeps around the disc along a convex outer
+    // edge, and ends in a sharp hooked tip at the rim; the inner
+    // edge curves back down to the core. The same numbers drive
+    // ARM_POLYS below, so the sparkles can fill the arms too.
+    function armPath(b) {
       var A = b * 90;
-      var lead = pt(A - 38, 90), tip = pt(A + 6, 478),
-          leadCtl = pt(A - 24, 300),
-          trail = pt(A + 54, 94),
-          trailCtl1 = pt(A + 46, 440), trailCtl2 = pt(A + 40, 158);
-      ctx.moveTo(lead[0], lead[1]);
-      ctx.quadraticCurveTo(leadCtl[0], leadCtl[1], tip[0], tip[1]);
-      ctx.bezierCurveTo(trailCtl1[0], trailCtl1[1], trailCtl2[0], trailCtl2[1], trail[0], trail[1]);
-    }
-    function starPath() {
-      ctx.beginPath();
-      for (var b = 0; b < 4; b++) {
-        bladePath(b);
-        var A = b * 90, nxt = pt(A + 52, 90);
-        ctx.lineTo(nxt[0], nxt[1]);
-      }
+      var baseTrail = pt(A - 52, 110), tip = pt(A + 60, 484),
+          outerCtl = pt(A + 6, 458),
+          innerCtl = pt(A + 36, 278), baseLead = pt(A - 12, 104);
+      ctx.moveTo(baseTrail[0], baseTrail[1]);
+      ctx.quadraticCurveTo(outerCtl[0], outerCtl[1], tip[0], tip[1]);
+      ctx.quadraticCurveTo(innerCtl[0], innerCtl[1], baseLead[0], baseLead[1]);
       ctx.closePath();
     }
-    // Faint energy field behind the blades
-    var fg = ctx.createRadialGradient(cx, cx, 10, cx, cx, 480);
-    fg.addColorStop(0, P.field[0]);
-    fg.addColorStop(1, P.field[1]);
-    ctx.fillStyle = fg;
-    ctx.fillRect(0, 0, S, S);
-    // For Lava, a broken ring of fire glow sits behind the blades
+    function armsPath() {
+      ctx.beginPath();
+      for (var b = 0; b < 4; b++) armPath(b);
+    }
+    // The disc under the arms: a filled swirl of chakra, bright at
+    // the heart and thinning at the rim, with darker and brighter
+    // arcs turning through it
+    var dg = ctx.createRadialGradient(cx, cx, 10, cx, cx, 472);
+    dg.addColorStop(0, P.disc[0]);
+    dg.addColorStop(0.62, P.disc[1]);
+    dg.addColorStop(1, P.disc[2]);
+    ctx.beginPath();
+    ctx.arc(cx, cx, 472, 0, Math.PI * 2);
+    ctx.fillStyle = dg;
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cx, 472, 0, Math.PI * 2);
+    ctx.clip();
+    for (i = 0; i < 30; i++) {
+      a = Math.random() * Math.PI * 2;
+      rr = 120 + Math.random() * 330;
+      ctx.beginPath();
+      ctx.arc(cx, cx, rr, a, a + 0.5 + Math.random() * 0.7);
+      ctx.strokeStyle = Math.random() < 0.6 ? P.shade : "rgba(255,255,255,0.10)";
+      ctx.lineWidth = 9 + Math.random() * 18;
+      ctx.stroke();
+    }
+    ctx.restore();
+    // For Lava, a broken ring of fire glow sits behind the arms
     if (mode === "lava") {
       for (i = 0; i < 110; i++) {
         a = (i / 110) * Math.PI * 2 + Math.random() * 0.05;
@@ -324,29 +343,29 @@
     hg.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = hg;
     ctx.fillRect(0, 0, S, S);
-    // Soft glow pass under the star
-    starPath();
+    // Soft glow pass under the arms
+    armsPath();
     ctx.save();
     ctx.shadowColor = P.glow;
-    ctx.shadowBlur = 48;
+    ctx.shadowBlur = 44;
     ctx.fillStyle = P.glow;
     ctx.fill();
     ctx.restore();
-    // Main fill: hot at the heart, style colour out to the tips
-    var g = ctx.createRadialGradient(cx, cx, 8, cx, cx, 486);
+    // Arm fill: hot at the heart, style colour out to the tips
+    var g = ctx.createRadialGradient(cx, cx, 8, cx, cx, 494);
     for (i = 0; i < P.grad.length; i++) g.addColorStop(P.grad[i][0], P.grad[i][1]);
-    starPath();
+    armsPath();
     ctx.fillStyle = g;
     ctx.fill();
-    // Inner detail, clipped to the blades so the silhouette stays
-    // clean: flow shading along each blade, then a light grain
+    // Inner detail, clipped to the arms: flow shading sweeping
+    // along each arm, then a light grain
     ctx.save();
-    starPath();
+    armsPath();
     ctx.clip();
     for (var b2 = 0; b2 < 4; b2++) {
       var A2 = b2 * 90;
       for (var j = 0; j < 2; j++) {
-        var p0 = pt(A2 - 26 + j * 20, 130), p1 = pt(A2 - 4 + j * 18, 262), p2 = pt(A2 + 8 + j * 13, 398);
+        var p0 = pt(A2 - 34 + j * 19, 148), p1 = pt(A2 + 4 + j * 16, 292), p2 = pt(A2 + 40 + j * 10, 428);
         ctx.beginPath();
         ctx.moveTo(p0[0], p0[1]);
         ctx.quadraticCurveTo(p1[0], p1[1], p2[0], p2[1]);
@@ -370,25 +389,64 @@
       }
     }
     ctx.restore();
-    // Bright line along each leading edge: the cutting edge
+    // Bright line along each arm's outer edge: the cutting edge
     ctx.lineCap = "round";
     for (var b3 = 0; b3 < 4; b3++) {
       var A3 = b3 * 90;
-      var ld = pt(A3 - 38, 90), tp = pt(A3 + 6, 478), lc = pt(A3 - 24, 300);
+      var bt = pt(A3 - 52, 110), tp = pt(A3 + 60, 484), oc = pt(A3 + 6, 458);
       ctx.beginPath();
-      ctx.moveTo(ld[0], ld[1]);
-      ctx.quadraticCurveTo(lc[0], lc[1], tp[0], tp[1]);
+      ctx.moveTo(bt[0], bt[1]);
+      ctx.quadraticCurveTo(oc[0], oc[1], tp[0], tp[1]);
       ctx.strokeStyle = P.edge;
       ctx.lineWidth = 6;
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(ld[0], ld[1]);
-      ctx.quadraticCurveTo(lc[0], lc[1], tp[0], tp[1]);
+      ctx.moveTo(bt[0], bt[1]);
+      ctx.quadraticCurveTo(oc[0], oc[1], tp[0], tp[1]);
       ctx.strokeStyle = "rgba(255,255,255,0.95)";
       ctx.lineWidth = 2;
       ctx.stroke();
     }
     return new THREE.CanvasTexture(c);
+  }
+
+  // The four blade arms as polygons in disc units, sampled from the
+  // same curves the wing texture draws (disc radius 3.6, texture
+  // 1024 px across, y flipped), so the sparkle cloud can be
+  // scattered inside the arms themselves.
+  var ARM_POLYS = (function () {
+    function pt(deg, r) {
+      var t = deg * Math.PI / 180, k = 3.6 / 512;
+      return [Math.cos(t) * r * k, -Math.sin(t) * r * k];
+    }
+    function quad(p0, p1, p2, n) {
+      var out = [];
+      for (var i = 0; i <= n; i++) {
+        var t = i / n, u = 1 - t;
+        out.push([u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0],
+                  u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]]);
+      }
+      return out;
+    }
+    var polys = [];
+    for (var b = 0; b < 4; b++) {
+      var A = b * 90;
+      var baseTrail = pt(A - 52, 110), tip = pt(A + 60, 484),
+          outerCtl = pt(A + 6, 458), innerCtl = pt(A + 36, 278), baseLead = pt(A - 12, 104);
+      polys.push(quad(baseTrail, outerCtl, tip, 20).concat(quad(tip, innerCtl, baseLead, 20)));
+    }
+    return polys;
+  })();
+  function inArms(x, y) {
+    for (var p = 0; p < ARM_POLYS.length; p++) {
+      var poly = ARM_POLYS[p], inside = false;
+      for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) return true;
+    }
+    return false;
   }
 
   // ---------- Style definitions ----------
@@ -594,7 +652,9 @@
     fx.swirlGeo = swirlGeo; fx.swirlMat = swirlMat;
     fx.swirlPos = swirlPos; fx.swirlAng = swirlAng; fx.swirlRad = swirlRad; fx.swirlY = swirlY;
 
-    // The wing disc: fine sparkles over a drawn cloud disc
+    // The wing disc: fine sparkles over the wing disc, most of them
+    // inside the blade arms so the sparkle cloud itself carries the
+    // shuriken shape, the rest spread thin across the disc
     var BLADE_N = 9000;
     fx.bladeN = BLADE_N;
     var bladeGeo = new THREE.BufferGeometry();
@@ -604,34 +664,28 @@
     var bladeSeed = new Float32Array(BLADE_N);
     (function initBlades() {
       for (var i = 0; i < BLADE_N; i++) {
-        var x, y, t;
-        var kind = Math.random();
+        var x, y, r;
         if (i < 1200) {
           var ra = Math.random() * Math.PI * 2;
-          var rr = 0.85 + Math.random() * 0.35;
-          x = Math.cos(ra) * rr; y = Math.sin(ra) * rr; t = 0.12;
-        } else if (kind < 0.16) {
-          // A whisper of blade structure along the same bent spine
-          // the cloud blades follow
-          var b = i % 4;
-          var tt = Math.pow(Math.random(), 0.8);
-          var ang = b * Math.PI / 2 + tt * 0.5 + 0.5 * tt * tt * tt;
-          var rad = 0.5 + tt * 2.05;
-          var off = (Math.random() - 0.5) * 0.8 * (1 - tt * 0.3);
-          x = Math.cos(ang) * rad - Math.sin(ang) * off;
-          y = Math.sin(ang) * rad + Math.cos(ang) * off;
-          t = tt;
+          r = 0.8 + Math.random() * 0.3;
+          x = Math.cos(ra) * r; y = Math.sin(ra) * r;
+        } else if (Math.random() < 0.55) {
+          var px = 0, py = 0, tries = 0;
+          do {
+            px = (Math.random() * 2 - 1) * 3.5;
+            py = (Math.random() * 2 - 1) * 3.5;
+            tries++;
+          } while (!inArms(px, py) && tries < 12);
+          x = px; y = py; r = Math.hypot(x, y);
         } else {
           var fa = Math.random() * Math.PI * 2;
-          var fr = 0.5 + 2.05 * Math.pow(Math.random(), 0.55);
-          if (fr > 2.2 && Math.random() < 0.5) fr = 0.6 + Math.random() * 1.5;
-          x = Math.cos(fa) * fr; y = Math.sin(fa) * fr;
-          t = (fr - 0.5) / 2.05;
+          r = 0.5 + 2.9 * Math.pow(Math.random(), 0.6);
+          x = Math.cos(fa) * r; y = Math.sin(fa) * r;
         }
         bladePos[i * 3] = x;
         bladePos[i * 3 + 1] = y;
         bladePos[i * 3 + 2] = (Math.random() - 0.5) * 0.05;
-        bladeT[i] = Math.max(0, Math.min(1, t));
+        bladeT[i] = Math.max(0, Math.min(1, (r - 0.3) / 3.2));
         bladeSeed[i] = Math.random();
       }
     })();
@@ -646,7 +700,7 @@
       map: wingDiscs.wind, color: 0xffffff, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
     });
-    var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(2.7, 40), bladeDiscMat);
+    var bladeDisc = new THREE.Mesh(new THREE.CircleGeometry(3.6, 64), bladeDiscMat);
     bladeGroup.add(bladeDisc);
     bladeGroup.add(new THREE.Points(bladeGeo, bladeMat));
     bladeGroup.visible = false;
@@ -669,7 +723,7 @@
     (function initWind() {
       for (var i = 0; i < WIND_N; i++) {
         windAng[i] = Math.random() * Math.PI * 2;
-        windRad[i] = 1.6 + Math.pow(Math.random(), 1.2) * 1.6;
+        windRad[i] = 2.4 + Math.pow(Math.random(), 1.2) * 2.2;
         windLen[i] = 0.08 + Math.random() * 0.18;
         windSpd[i] = 0.7 + Math.random() * 0.9;
         var b = 0.25 + Math.random() * 0.55;
@@ -695,7 +749,7 @@
       windMists.push({
         sprite: mist,
         ang: Math.random() * Math.PI * 2,
-        rad: 1.9 + Math.random() * 1.2,
+        rad: 3.2 + Math.random() * 1.3,
         spd: 0.3 + Math.random() * 0.4,
         scl: 1.6 + Math.random() * 1.4,
         ph: Math.random() * Math.PI * 2,
