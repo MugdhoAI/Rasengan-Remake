@@ -932,7 +932,10 @@
       // spins on its own axis, like the reference. The disc in the
       // reference video measures about half as tall as wide, which
       // is a tilt of roughly 60 degrees from flat to the camera.
-      fx.bladeTilt.rotation.x = st.wings === "wind" ? -1.0 : 0;
+      // Round 2 leant it the wrong way (top edge away); the
+      // reference leans the other side, top edge toward the
+      // viewer, tipping forward off the palm, so the sign flips.
+      fx.bladeTilt.rotation.x = st.wings === "wind" ? 1.0 : 0;
       fx.windMat.color.setHex(st.swirlColor);
       for (var wm = 0; wm < fx.windMists.length; wm++) fx.windMists[wm].sprite.material.color.setHex(st.glow);
     }
